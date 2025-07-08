@@ -1,0 +1,61 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/rocker-org/devcontainer-templates/tree/main/src/r-ver
+{
+	"name": "hptmUsage",
+	"image": "ghcr.io/rocker-org/devcontainer/r-ver:4",
+	"features": {
+		// Needed for MSA functionality
+		"ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
+			"packages": "mafft,bash-completion"
+		},
+		// For interactive report
+		"ghcr.io/rocker-org/devcontainer-features/quarto-cli:1": {
+			"installTinyTex": true,
+			"version": "latest"
+		},
+		// Only until DESCRIPTION file is ready TODO
+		"ghcr.io/rocker-org/devcontainer-features/r-packages:1": {
+			"installSystemRequirements": true,
+			"notCran": true,
+			"packages": "archive,AsioHeaders,bioc::BiocVersion,bioc::Biostrings,bioc::ExploreModelMatrix,bioc::ggmsa,bioc::hexbin,bioc::msqrob2,plogr,bioc::QFeatures,RcppEigen,bioc::UniProt.ws,bioc::vsn,ggrepel,janitor,ggExtra,pillar,progress,tidyverse",
+			"pakVersion": "auto"
+		}
+		// Once DESCRIPTION file is ready TODO
+		// "ghcr.io/rocker-org/devcontainer-features/r-dependent-packages:0": {
+		// 	"when": "postCreate",
+		// 	"pakVersion": "auto",
+		// 	"manifestRoot": ".",
+		// 	"additionalRepositories": "",
+		// 	"dependencyTypes": "all,Config/Needs/website"
+		// }
+	},
+	// Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"posit.air-vscode",
+				"ionutvmi.path-autocomplete",
+				"mechatroner.rainbow-csv"
+			],
+			"settings": {
+				"[quarto]": {
+					"editor.defaultFormatter": "Posit.air-vscode",
+					"editor.formatOnSave": true
+				},
+				"[r]": {
+					"editor.defaultFormatter": "Posit.air-vscode",
+					"editor.formatOnSave": true
+				}
+			}
+		}
+	},
+	// Set container name used by docker
+	"runArgs": [
+		"--name",
+		"devcontainer-${containerWorkspaceFolderBasename}"
+	],
+	// Initialize bash-completions
+	"onCreateCommand": {
+		"bash-completions": "echo 'source /etc/profile.d/bash_completion.sh' | sudo tee -a /etc/bash.bashrc > /dev/null"
+	}
+}

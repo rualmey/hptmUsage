@@ -1,0 +1,36 @@
+project:
+  type: default
+  output-dir: doc
+  execute-dir: project
+author:
+  - name: Ruben Almey
+    email: ruben.almey@ugent.be
+    url: https://github.com/rualmey
+    orcid: 0000-0001-6911-5904
+    affiliation:
+      - name: Progentomics, Ghent University
+        url: https://www.progentomics.ugent.be/
+
+title-block-banner: true
+date: last-modified
+highlight-style: ayu-dark
+reference-location: document
+theme: flatly
+toc: true
+toc-location: left
+toc-expand: true
+number-sections: true
+
+format:
+  html:
+    code-copy: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+    df-print: paged
+    embed-resources: true
+    smooth-scroll: true
+    grid:
+      sidebar-width: 278px
+      body-width: 900px
+      margin-width: 278px

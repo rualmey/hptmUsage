@@ -1,0 +1,40 @@
+Package: hptmUsage
+Title: Usage Analysis of Histone Post-Translational Modifications
+Version: 0.0.0.9000
+Authors@R:
+    person("Ruben", "Almey", , "ruben.almey@ugent.be", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0001-6911-5904"))
+Description: Preprocessing, visualization, and analysis (e.g.,
+    differential usage) of histone post-translational modifications
+    (hPTMs). It builds on the 'msqrob2PTM' workflow to enable robust and
+    statistically sound analysis of hPTM data.
+License: GPL (>= 3)
+Depends:
+    R (>= 4.3),
+    QFeatures (>= 1.18.0)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+SystemRequirements: mafft
+Imports:
+    archive,
+    Biostrings,
+    dplyr,
+    forcats,
+    ggplot2,
+    hexbin,
+    janitor,
+    msqrob2,
+    plotly,
+    purrr,
+    readr,
+    stringr,
+    tibble,
+    tidyr,
+    UniProt.ws,
+    vsn
+Suggests:
+    ExploreModelMatrix,
+    ggExtra,
+    ggmsa,
+    ggrepel
