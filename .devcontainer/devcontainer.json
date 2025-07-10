@@ -13,21 +13,8 @@
 			"installTinyTex": true,
 			"version": "latest"
 		},
-		// Only until DESCRIPTION file is ready TODO
-		"ghcr.io/rocker-org/devcontainer-features/r-packages:1": {
-			"installSystemRequirements": true,
-			"notCran": true,
-			"packages": "archive,AsioHeaders,bioc::BiocVersion,bioc::Biostrings,bioc::ExploreModelMatrix,bioc::ggmsa,bioc::hexbin,bioc::msqrob2,plogr,bioc::QFeatures,RcppEigen,bioc::UniProt.ws,bioc::vsn,ggrepel,janitor,ggExtra,pillar,progress,tidyverse",
-			"pakVersion": "auto"
-		}
-		// Once DESCRIPTION file is ready TODO
-		// "ghcr.io/rocker-org/devcontainer-features/r-dependent-packages:0": {
-		// 	"when": "postCreate",
-		// 	"pakVersion": "auto",
-		// 	"manifestRoot": ".",
-		// 	"additionalRepositories": "",
-		// 	"dependencyTypes": "all,Config/Needs/website"
-		// }
+		// Install packages (Depends and Suggests) from DESCRIPTION file
+		"ghcr.io/rocker-org/devcontainer-features/r-dependent-packages:0": {}
 	},
 	// Configure tool-specific properties.
 	"customizations": {
@@ -57,5 +44,9 @@
 	// Initialize bash-completions
 	"onCreateCommand": {
 		"bash-completions": "echo 'source /etc/profile.d/bash_completion.sh' | sudo tee -a /etc/bash.bashrc > /dev/null"
+	},
+	// Package will not be submitted to CRAN
+	"containerEnv": {
+		"NOT_CRAN": "true"
 	}
 }

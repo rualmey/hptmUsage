@@ -1,2 +1,11 @@
+^\.devcontainer$
+^\.github$
+^\.vscode$
+^data-raw$
+^\.gitignore$
+^\.lintr$
+^\.Rbuildignore$
+^\.Rprofile$
+^air\.toml$
 ^LICENSE\.md$
 ^README\.Rmd$
