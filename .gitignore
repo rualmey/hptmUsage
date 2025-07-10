@@ -66,7 +66,7 @@ rsconnect/
 
 # temporary leftovers
 # old analyses for reference
-_old/
+/inst/_old/
 # ignore data and outputs but keep folder structure intact
 # # /data/*
 # # /data/*/
