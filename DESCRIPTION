@@ -35,8 +35,10 @@ Imports:
     vsn
 Suggests:
     ExploreModelMatrix,
-    ggmsa
+    ggmsa,
+    testthat (>= 3.0.0)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
-SystemRequirements:mafft, quarto
+SystemRequirements: mafft, quarto
+Config/testthat/edition: 3
