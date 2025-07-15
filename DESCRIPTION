@@ -30,6 +30,7 @@ Imports:
     quarto,
     readr,
     stringr,
+    SummarizedExperiment,
     tidyr,
     UniProt.ws,
     vsn
