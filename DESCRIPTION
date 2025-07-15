@@ -16,9 +16,11 @@ Depends:
     R (>= 4.3)
 Imports:
     archive,
+    Biobase,
     Biostrings,
     dplyr,
     forcats,
+    fs,
     ggExtra,
     ggplot2,
     ggrepel,
@@ -29,10 +31,14 @@ Imports:
     purrr,
     quarto,
     readr,
+    rlang,
     stringr,
     SummarizedExperiment,
+    tibble,
     tidyr,
+    tidyselect,
     UniProt.ws,
+    vctrs,
     vsn
 Suggests:
     ExploreModelMatrix,

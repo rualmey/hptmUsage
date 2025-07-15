@@ -7,10 +7,9 @@
 readProgenesis(
   file,
   quant = "Raw abundance",
-  return_qfeatures = TRUE,
-  simplify_column_names = TRUE,
-  generate_metadata = TRUE,
-  overwrite_metadata = FALSE
+  generate_metadata = FALSE,
+  overwrite_metadata = FALSE,
+  simplify_column_names = TRUE
 )
 }
 \arguments{
@@ -23,23 +22,20 @@ protein, sequence, variable modifications, and a quantitative value (see
 \item{quant}{The quantitative value to use: \code{"Raw abundance"} (default),
 \code{"Normalized abundance"}, or \code{"Intensity"}.}
 
-\item{return_qfeatures}{Whether to return a \code{QFeatures} (\code{TRUE}, default)
-object or a \code{tibble} (\code{FALSE}).}
-
-\item{simplify_column_names}{Remove pre-/suffixes from sample names (default
-\code{TRUE})?}
-
 \item{generate_metadata}{Generate a metadata \code{.csv} file that can be manually
-edited (default \code{TRUE}, see also \code{overwrite_metadata})? Can also be a path
-to the location where the metadata file will be written. Updated metadata
-can later be added to a \code{QFeatures} object using \code{\link[=replace_metadata]{replace_metadata()}}.}
+edited (default \code{FALSE}, see also \code{overwrite_metadata})? Can also be a path
+to the location where the metadata file will be written (e.g.,
+\code{"./data/metadata.csv"}). Updated metadata can later be added to a
+\code{QFeatures} object using \code{\link[=replace_metadata]{replace_metadata()}}.}
 
 \item{overwrite_metadata}{Overwrite the metadata file if it already exists
 (default \code{FALSE})?}
+
+\item{simplify_column_names}{Remove pre-/suffixes from sample names (default
+\code{TRUE})?}
 }
 \value{
-A \code{QFeatures} or \code{tibble} (see \code{return_qfeatures}) containing the
-Progenesis QIP dataset.
+A \code{QFeatures} containing the Progenesis QIP dataset.
 }
 \description{
 A Progenesis QIP peptide ion data \code{.csv} file is cleaned up to make it
@@ -48,7 +44,10 @@ quantitative data to one type, e.g., raw abundances, sanitizing sample names,
 and generating initial metadata from the Progenesis experimental design.
 }
 \examples{
+path_to_example_file <- hptmUsageData("all_ion_export.csv")
 # Simplest case
+readProgenesis(path_to_example_file)
+# TODO more cases
 }
 \seealso{
 The \code{\link[QFeatures:QFeatures-class]{QFeatures::QFeatures()}} class to read about how to manipulate
