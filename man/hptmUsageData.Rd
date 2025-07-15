@@ -16,5 +16,5 @@ Convenience function for accessing data files (located in source at
 }
 \examples{
 hptmUsageData()
-hptmUsageData("PXD009910_all_ID_pepion.csv")
+hptmUsageData("H3.fasta")
 }
