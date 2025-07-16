@@ -1,0 +1,8 @@
+,,,,
+,,,,
+#,Charge,Protein,Sequence,Variable modifications ([position] description)
+1,2,H31_HUMAN,KQLATKAAR,
+3,2,H2A1B_HUMAN,AGLQFPVGR,
+38341,2,H31_HUMAN,KQLATKAAR,[6] (K) Ac
+6,2,H2A1B_HUMAN,AKAKTR,
+38342,2,,,

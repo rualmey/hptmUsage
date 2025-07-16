@@ -39,7 +39,7 @@ readProgenesis <- function(
 ) {
   # check arguments
   stopifnot(file.exists(file))
-  stopifnot(quant %in% c("Raw abundance", "Normalized abundance", "Intensity"))
+  stopifnot(quant %in% c("Raw abundance", "Normalized abundance", "Intensity") && length(quant) == 1)
   stopifnot(
     isFALSE(generate_metadata) ||
       isTRUE(generate_metadata) ||
@@ -67,7 +67,7 @@ readProgenesis <- function(
     which(df[3, ] %in% sample_names),
     quant_idx
   )
-  df <- df |> dplyr::select(!other_quant_idx)
+  df <- df |> dplyr::select(!tidyselect::all_of(other_quant_idx))
   quant_idx <- which(df[3, ] %in% sample_names)
 
   # store group assignment from Progenesis QIP for later metadata, will be dropped soon
@@ -104,7 +104,7 @@ readProgenesis <- function(
   if ("notes" %in% colnames(df)) {
     notes <- df |>
       tidyr::drop_na("notes") |>
-      dplyr::select(c("feature_number", "notes"))
+      dplyr::select(tidyselect::all_of(c("feature_number", "notes")))
     if (nrow(notes) >= 1) {
       message(
         "Some features had a note:\n",
