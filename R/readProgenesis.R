@@ -26,10 +26,30 @@
 #' @seealso The [QFeatures::QFeatures()] class to read about how to manipulate
 #'   the resulting `QFeatures` object (if `return_qfeatures` was `TRUE`).
 #' @examples
-#' path_to_example_file <- hptmUsageData("all_ion_export.csv")
+#' \dontshow{
+#' .old_wd <- setwd(tempdir())
+#' file.copy(hptmUsageData("all_ion_export.csv"), ".")
+#' }
 #' # Simplest case
-#' readProgenesis(path_to_example_file)
-#' # TODO more cases
+#' readProgenesis("./all_ion_export.csv")
+#'
+#' # Generate a metadata `.csv` file that can be manually edited
+#' readProgenesis("./all_ion_export.csv", generate_metadata = TRUE)
+#' # A path can also be supplied, instead of having the file generated next to
+#' # the `.csv` source.
+#' readProgenesis("./all_ion_export.csv", generate_metadata = "./metadata.csv")
+#' # Note, if the metadata file already exists, nothing will be written unless
+#' # `overwrite_metadata` is set to `TRUE`
+#'
+#' # Use feature intensities instead of raw abundances
+#' readProgenesis("./all_ion_export.csv", quant = "Intensity")
+#'
+#' # Do not simplify (remove pre- and suffixes) sample names
+#' readProgenesis("./all_ion_export.csv", simplify_column_names = FALSE)
+#' \dontshow{
+#' setwd(.old_wd)
+#' }
+
 readProgenesis <- function(
   file,
   quant = "Raw abundance",
