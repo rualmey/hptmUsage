@@ -20,6 +20,9 @@ toc: true
 toc-location: left
 toc-expand: true
 number-sections: true
+knitr:
+  opts_chunk:
+    dev: "ragg_png"
 
 format:
   html:
