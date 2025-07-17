@@ -49,7 +49,6 @@
 #' \dontshow{
 #' setwd(.old_wd)
 #' }
-
 readProgenesis <- function(
   file,
   quant = "Raw abundance",
