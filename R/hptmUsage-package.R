@@ -5,6 +5,8 @@
 #' @importFrom dplyr across
 #' @importFrom dplyr mutate
 #' @importFrom rlang .data
-#' @importMethodsFrom SummarizedExperiment rowData
+#' @importMethodsFrom SummarizedExperiment rowData colData
+#' @importClassesFrom SummarizedExperiment SummarizedExperiment
+#' @importClassesFrom QFeatures QFeatures
 ## usethis namespace: end
-NULL
+setClassUnion("QFeatures_OR_SummarizedExperiment", c("QFeatures", "SummarizedExperiment"))

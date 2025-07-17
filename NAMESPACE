@@ -2,7 +2,11 @@
 
 export(hptmUsageData)
 export(readProgenesis)
+export(replaceColData)
+importClassesFrom(QFeatures,QFeatures)
+importClassesFrom(SummarizedExperiment,SummarizedExperiment)
 importFrom(dplyr,across)
 importFrom(dplyr,mutate)
 importFrom(rlang,.data)
+importMethodsFrom(SummarizedExperiment,colData)
 importMethodsFrom(SummarizedExperiment,rowData)

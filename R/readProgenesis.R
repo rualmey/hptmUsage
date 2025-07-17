@@ -16,7 +16,7 @@
 #'   edited (default `FALSE`, see also `overwrite_metadata`)? Can also be a path
 #'   to the location where the metadata file will be written (e.g.,
 #'   `"./data/metadata.csv"`). Updated metadata can later be added to a
-#'   `QFeatures` object using [replace_metadata()].
+#'   `QFeatures` object using [replaceColData()].
 #' @param overwrite_metadata Overwrite the metadata file if it already exists
 #'   (default `FALSE`)?
 #' @param simplify_column_names Remove pre-/suffixes from sample names (default

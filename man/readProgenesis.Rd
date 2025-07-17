@@ -26,7 +26,7 @@ protein, sequence, variable modifications, and a quantitative value (see
 edited (default \code{FALSE}, see also \code{overwrite_metadata})? Can also be a path
 to the location where the metadata file will be written (e.g.,
 \code{"./data/metadata.csv"}). Updated metadata can later be added to a
-\code{QFeatures} object using \code{\link[=replace_metadata]{replace_metadata()}}.}
+\code{QFeatures} object using \code{\link[=replaceColData]{replaceColData()}}.}
 
 \item{overwrite_metadata}{Overwrite the metadata file if it already exists
 (default \code{FALSE})?}

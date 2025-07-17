@@ -53,3 +53,9 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 SystemRequirements: mafft, quarto
+Collate:
+    'data.R'
+    'hptmUsage-package.R'
+    'readProgenesis.R'
+    'replaceColData.R'
+    'zzz.R'

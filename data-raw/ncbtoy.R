@@ -2,4 +2,6 @@
 # Only a subset of naive (condition_A) and primed (condition_B) samples were kept for the example
 ncbtoy <- readProgenesis("./data-raw/ncbtoy.csv")
 
+# Add in metadata TODO
+
 usethis::use_data(ncbtoy, overwrite = TRUE)
