@@ -1,0 +1,11 @@
+quantCols,original_name,group,include,outlier,ms_run,date_collected,prep_batch
+a_1,250715_condA_1,condition_A,TRUE,FALSE,7,191206,A
+a_2,250715_condA_2,condition_A,TRUE,FALSE,15,191210,B
+a_3,250715_condA_3,condition_A,TRUE,FALSE,19,191211,A
+a_4,250715_condA_4,condition_A,TRUE,FALSE,23,191213,B
+a_5,250715_condA_5,condition_A,TRUE,FALSE,27,191214,B
+b_1,250715_condB_1,condition_B,TRUE,FALSE,13,191215,A
+b_2,250715_condB_2,condition_B,TRUE,FALSE,17,191215,A
+b_3,250715_condB_3,condition_B,TRUE,FALSE,21,191217,B
+b_4,250715_condB_4,condition_B,TRUE,FALSE,25,191218,A
+b_5,250715_condB_5,condition_B,TRUE,FALSE,29,191220,A

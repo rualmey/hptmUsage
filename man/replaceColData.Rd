@@ -4,29 +4,54 @@
 \alias{replaceColData}
 \alias{replaceColData,QFeatures_OR_SummarizedExperiment,character-method}
 \alias{replaceColData,QFeatures_OR_SummarizedExperiment,tbl_df-method}
-\title{Safely Replace \code{colData} of a QFeatures Object}
+\title{Safely Replace \code{colData}}
 \usage{
 replaceColData(object, colData, ...)
 
 \S4method{replaceColData}{QFeatures_OR_SummarizedExperiment,character}(object, colData, custom_coltypes = NULL)
 
-\S4method{replaceColData}{QFeatures_OR_SummarizedExperiment,tbl_df}(object, colData, custom_coltypes = NULL)
+\S4method{replaceColData}{QFeatures_OR_SummarizedExperiment,tbl_df}(object, colData)
 }
 \arguments{
-\item{object}{The QFeatures object in which to replace the colData.}
+\item{object}{The \code{QFeatures} or \code{SummarizedExperiment} object of which the
+\code{colData} should be replaced.}
 
-\item{colData}{TODO The path (\code{character(1)}) pointing to a colData \code{.csv} file. This file should contain at least the
-columns of quantCols, original_name, group, include, and outlier.}
+\item{colData}{New colData to be added to \code{object}. Can be either a path
+(\code{character(1)}) pointing to a colData \code{.csv} file, for example generated
+using \code{\link[=readProgenesis]{readProgenesis()}}, or a \code{tbl_df} where rows are samples and columns
+are properties of the samples. The samples need to match those in the
+\code{object} and the columns should contain at least the "quantCols",
+"original_name", "group", "include", and "outlier".}
 
-\item{coltypes}{Column types used by \code{readr::read_csv()}, also see \code{vignette("readr")} for more details.}
+\item{...}{Additional arguments passed to specific methods.}
+
+\item{custom_coltypes}{A named \code{list(...)} of types for non-standard columns,
+defaulting to \code{\link[readr:parse_factor]{readr::col_factor()}}. See \code{\link[readr:cols]{readr::cols()}} for more
+information. There is no need to specify the types for "quantCols",
+"original_name", "group", "include", and "outlier".}
 }
 \value{
-A \code{QFeatures} object with colData replaced.
+A \code{QFeatures} or \code{SummarizedExperiment} (same as supplied) with the
+new colData.
 }
 \description{
-TODO Description here. Included error checking...
+Replaces \code{colData} of the given \code{QFeatures} or \code{SummarizedExperiment},
+including checking for common errors.
 }
 \examples{
-# TODO
-NULL
+replaceColData(
+  ncbtoy,
+  hptmUsageData("ncbtoy_coldata.csv"),
+  list(
+    ms_run = readr::col_integer(),
+    date_collected = readr::col_date(format = "\%y\%m\%d"),
+    prep_batch = readr::col_factor()
+  )
+)
+readr::read_csv(hptmUsageData("ncbtoy_coldata.csv")) |>
+  dplyr::mutate(group = as.factor(group)) |>
+  replaceColData(
+    ncbtoy,
+    colData = _
+  )
 }

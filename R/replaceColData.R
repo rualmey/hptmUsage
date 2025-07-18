@@ -1,21 +1,39 @@
-#' Safely Replace `colData` of a QFeatures Object
+#' Safely Replace `colData`
 #'
-#' TODO Description here. Included error checking...
+#' Replaces `colData` of the given `QFeatures` or `SummarizedExperiment`,
+#' including checking for common errors.
 #'
-#' @param object The QFeatures object in which to replace the colData.
-#' @param colData TODO The path (`character(1)`) pointing to a colData `.csv` file. This file should contain at least the
-#'  columns of quantCols, original_name, group, include, and outlier.
-#' @param coltypes Column types used by `readr::read_csv()`, also see `vignette("readr")` for more details.
-#' @returns A `QFeatures` object with colData replaced.
+#' @param object The `QFeatures` or `SummarizedExperiment` object of which the
+#'   `colData` should be replaced.
+#' @param colData New colData to be added to `object`. Can be either a path
+#'   (`character(1)`) pointing to a colData `.csv` file, for example generated
+#'   using [readProgenesis()], or a `tbl_df` where rows are samples and columns
+#'   are properties of the samples. The samples need to match those in the
+#'   `object` and the columns should contain at least the "quantCols",
+#'   "original_name", "group", "include", and "outlier".
+#' @param ... Additional arguments passed to specific methods.
+#' @returns A `QFeatures` or `SummarizedExperiment` (same as supplied) with the
+#'   new colData.
 #' @export
 #' @name replaceColData
 #' @include hptmUsage-package.R
-#' @examples
-#' # TODO
-#' NULL
 setGeneric("replaceColData", function(object, colData, ...) standardGeneric("replaceColData"))
 
 #' @rdname replaceColData
+#' @param custom_coltypes A named `list(...)` of types for non-standard columns,
+#'   defaulting to [readr::col_factor()]. See [readr::cols()] for more
+#'   information. There is no need to specify the types for "quantCols",
+#'   "original_name", "group", "include", and "outlier".
+#' @examples
+#' replaceColData(
+#'   ncbtoy,
+#'   hptmUsageData("ncbtoy_coldata.csv"),
+#'   list(
+#'     ms_run = readr::col_integer(),
+#'     date_collected = readr::col_date(format = "%y%m%d"),
+#'     prep_batch = readr::col_factor()
+#'   )
+#' )
 setMethod(
   "replaceColData",
   c("QFeatures_OR_SummarizedExperiment", "character"),
@@ -47,32 +65,43 @@ setMethod(
 )
 
 #' @rdname replaceColData
+#' @examples
+#' readr::read_csv(hptmUsageData("ncbtoy_coldata.csv")) |>
+#'   dplyr::mutate(group = as.factor(group)) |>
+#'   replaceColData(
+#'     ncbtoy,
+#'     colData = _
+#'   )
 setMethod(
   "replaceColData",
   c("QFeatures_OR_SummarizedExperiment", "tbl_df"),
   function(
     object,
-    colData,
-    custom_coltypes = NULL
+    colData
   ) {
-    # check arguments TODO
-    # stopifnot(file.exists(colData))
+    # check arguments
+    stopifnot(all(c("quantCols", "original_name", "group", "include", "outlier") %in% colnames(colData)))
 
-    # # read colData csv and check required columns
-    # coltypes <- list(
-    #   quantCols = readr::col_character(),
-    #   original_name = readr::col_character(),
-    #   group = readr::col_factor(),
-    #   include = readr::col_logical(),
-    #   outlier = readr::col_logical(),
-    #   .default = readr::col_factor()
-    # ) |>
-    #   c(custom_coltypes) |>
-    #   do.call(what = readr::cols, args = _)
-    # col_data <- readr::read_csv(colData, col_types = coltypes, progress = FALSE)
-    # stopifnot(all(c("quantCols", "original_name", "group", "include", "outlier") %in% colnames(col_data)))
+    # check column types
+    expected_coltypes <- c(
+      quantCols = "character",
+      original_name = "character",
+      group = "factor",
+      include = "logical",
+      outlier = "logical"
+    )
+    # fmt: skip
+    coltypes <- colData |>
+      dplyr::summarize_all(class) |>
+      _[names(expected_coltypes)] == expected_coltypes
+    coltypes <- colnames(coltypes)[!coltypes]
+    if (length(coltypes) >= 1) {
+      warning(
+        "Column types do not match expectation: ",
+        paste(coltypes, expected_coltypes[coltypes], sep = "~", collapse = ", ")
+      )
+    }
 
-    # replace colData and return
     replace_col_data(object, colData)
   }
 )
