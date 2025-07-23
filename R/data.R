@@ -24,12 +24,13 @@ hptmUsageData <- function(file = NULL) {
 #' from naive (condition_A) and primed (condition_B) stem cell cultures as
 #' described in the reference below.
 #'
-#' @format TODO A QFeatures with 7,240 rows and 60 columns:
+#' @format A QFeatures object with 1 assay named `precursorRaw`. This assay
+#' contains 5663 features (peptide ions) and 10 samples from two conditions
+#' ('condition_A' and 'condition_B').
 #' \describe{
-#'   \item{assay}{contains the raw peptide intensities}
-#'   \item{rowData}{contains a variable "Proteins" with the protein accession and an variable ecoli to indicate if the protein is a spikin}
-#'   \item{colData}{contains a factor condition indicating the spike-in condition}
-#'   ...
+#'   \item{assay}{contains the raw peptide ion abundances}
+#'   \item{rowData}{contains 21 variables, including (most relevant) "protein", "sequence", and "mods"}
+#'   \item{colData}{contains 8 columns of sample metadata, including the "group" (biological factor), "ms_run"/"date_collected"/"prep_batch" (technical factors), and "include"/"outlier" (tags for analysis)}
 #' }
 #' @source <https://www.ebi.ac.uk/pride/archive/projects/PXD028162>
 #' @references Zijlmans, D. W.; Talon, I.; Verhelst, S.; Bendall, A.;
