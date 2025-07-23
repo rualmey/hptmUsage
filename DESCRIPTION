@@ -58,6 +58,7 @@ RoxygenNote: 7.3.2
 SystemRequirements: mafft, quarto
 Collate:
     'data.R'
+    'hptmMSA.R'
     'hptmUsage-package.R'
     'readProgenesis.R'
     'replaceColData.R'
