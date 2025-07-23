@@ -63,7 +63,7 @@ setMethod(
     col_data <- readr::read_csv(colData, col_types = coltypes, progress = FALSE)
 
     # replace colData and return
-    replace_col_data(object, col_data)
+    .replace_col_data(object, col_data)
   }
 )
 
@@ -105,11 +105,11 @@ setMethod(
       )
     }
 
-    replace_col_data(object, colData)
+    .replace_col_data(object, colData)
   }
 )
 
-replace_col_data <- function(object, col_data) {
+.replace_col_data <- function(object, col_data) {
   # make sure the same quantCols are present
   existing_quantcols <- rownames(colData(object))
   quantcols_not_meta <- setdiff(existing_quantcols, col_data$quantCols)

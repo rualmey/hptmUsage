@@ -99,7 +99,7 @@ readProgenesis <- function(
 
   # simplify sample names if requested and clean up header
   if (simplify_column_names) {
-    sample_names <- remove_pre_suffix(sample_names)
+    sample_names <- .remove_pre_suffix(sample_names)
     df[3, quant_idx] <- as.list(sample_names)
   }
   # first two rows contain no useful info, ignore warning as we fix it below
@@ -117,7 +117,7 @@ readProgenesis <- function(
   df <- df |>
     # ID transfer from different charge states in ProgenesisQIP gives NA score
     mutate(score = dplyr::na_if(.data[["score"]], "---")) |>
-    fix_progenesis_dtypes(cleaned_names)
+    .fix_progenesis_dtypes(cleaned_names)
 
   # check for notes, if present
   if ("notes" %in% colnames(df)) {
@@ -204,7 +204,7 @@ get_quant_cols <- function(df, quant) {
 }
 
 # helper to remove pre- and/or suffixes from a character vector
-remove_pre_suffix <- function(sample_names, prefix = TRUE, suffix = TRUE) {
+.remove_pre_suffix <- function(sample_names, prefix = TRUE, suffix = TRUE) {
   if (prefix) {
     prefix_len <- nchar(Biobase::lcPrefix(sample_names))
     sample_names <- stringr::str_sub(sample_names, start = prefix_len + 1)
@@ -217,7 +217,7 @@ remove_pre_suffix <- function(sample_names, prefix = TRUE, suffix = TRUE) {
 }
 
 # helper to fix data types after reading a Progenesis ion export
-fix_progenesis_dtypes <- function(df, cleaned_names) {
+.fix_progenesis_dtypes <- function(df, cleaned_names) {
   df |>
     mutate(
       # fix quant column types

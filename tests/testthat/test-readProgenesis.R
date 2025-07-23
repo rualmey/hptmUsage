@@ -11,9 +11,9 @@ test_that("correct quant data is subselected", {
 })
 
 test_that("names are simplified", {
-  expect_equal(remove_pre_suffix(paste("pre", c("a", "b", "c"))), c("a", "b", "c"))
-  expect_equal(remove_pre_suffix(paste(c("a", "b", "c"), "suf")), c("a", "b", "c"))
-  expect_equal(remove_pre_suffix(paste("pre", c("a", "b", "c"), "suf")), c("a", "b", "c"))
+  expect_equal(.remove_pre_suffix(paste("pre", c("a", "b", "c"))), c("a", "b", "c"))
+  expect_equal(.remove_pre_suffix(paste(c("a", "b", "c"), "suf")), c("a", "b", "c"))
+  expect_equal(.remove_pre_suffix(paste("pre", c("a", "b", "c"), "suf")), c("a", "b", "c"))
 })
 
 test_that("non-existent file throws error", {
