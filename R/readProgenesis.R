@@ -216,7 +216,7 @@ remove_pre_suffix <- function(sample_names, prefix = TRUE, suffix = TRUE) {
   sample_names
 }
 
-
+# helper to fix data types after reading a Progenesis ion export
 fix_progenesis_dtypes <- function(df, cleaned_names) {
   df |>
     mutate(

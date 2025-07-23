@@ -44,6 +44,10 @@ setMethod(
   ) {
     # check arguments
     stopifnot(file.exists(colData))
+    stopifnot(all(
+      c("quantCols", "original_name", "group", "include", "outlier") %in%
+        colnames(readr::read_csv(colData, show_col_types = FALSE, progress = FALSE))
+    ))
 
     # read colData csv and check required columns
     coltypes <- list(
@@ -57,7 +61,6 @@ setMethod(
       c(custom_coltypes) |>
       do.call(what = readr::cols, args = _)
     col_data <- readr::read_csv(colData, col_types = coltypes, progress = FALSE)
-    stopifnot(all(c("quantCols", "original_name", "group", "include", "outlier") %in% colnames(col_data)))
 
     # replace colData and return
     replace_col_data(object, col_data)
