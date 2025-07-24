@@ -35,3 +35,24 @@ family and is an \code{AAStringSet} object of matching histone variant sequences
 Request histone families to the UniProt API and return an AAStringSetList of
 all requested families.
 }
+\examples{
+\dontrun{
+# Retrieve all human histone sequences from UniProt (reviewed entries only)
+human_histones <- histonesFromUniprot()
+
+# Retrieve only H3 and H4 sequences
+h3_h4_histones <- histonesFromUniprot(histone_families = c("H3", "H4"))
+
+# Retrieve mouse histones instead of human (Taxon ID = 10090)
+mouse_histones <- histonesFromUniprot(query = c("organism_id:10090", "reviewed:true"))
+
+# Use accession numbers for sequence names instead of entry names
+histones_by_accession <- histonesFromUniprot(name_field = "accession")
+
+# Retrieve human histones (reviewed only) and mouse histones (including unreviewed)
+human_mouse_histones <- histonesFromUniprot(
+  query = c("organism_id:9606 AND reviewed:true", "organism_id:10090"),
+  collapse = " OR "
+)
+}
+}

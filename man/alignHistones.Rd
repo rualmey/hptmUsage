@@ -6,7 +6,7 @@
 \usage{
 alignHistones(
   unaligned_histones = NULL,
-  return_alignment = TRUE,
+  return_alignment = FALSE,
   output_path = "./out/msa/",
   overwrite = FALSE,
   use_profiles = TRUE,
@@ -23,14 +23,12 @@ to align, by family. If \code{NULL}, a default call to \code{\link[=histonesFrom
 is made, i.e., sequences from all five histone families (human and
 reviewed) are retrieved.}
 
-\item{return_alignment}{A \code{logical(1)} indicating whether to save the
-alignment to \code{.fasta} files. Optional.}
-
-\item{output_path}{A \code{character(1)} specifying the directory to save
-alignment files. Optional.}
-
-\item{overwrite}{A \code{logical(1)} indicating whether to overwrite existing
-files at \code{output_path}. Optional.}
+\item{return_alignment, output_path, overwrite}{Return the alignment? In order:
+\itemize{
+\item A \code{logical(1)} indicating whether to save the alignment to \code{.fasta} files.
+\item A \code{character(1)} specifying the directory to save alignment files.
+\item A \code{logical(1)} indicating whether to overwrite existing files at \code{output_path}
+}}
 
 \item{use_profiles}{A \code{logical(1)} or \code{character()} indicating whether to
 add sequences to existing histone MSA profiles. If \code{TRUE}, uses the curated
@@ -74,10 +72,46 @@ It is therefore highly recommended to leave these settings at default, so
 that hPTM definition will be consistent, even when the sequences to align
 change.
 }
+\examples{
+\dontrun{
+# Align default human histone sequences from UniProt (reviewed entries only)
+aligned_human_histones <- alignHistones()
+
+# Align a custom set of histone sequences
+library(Biostrings)
+h3_seqs <- AAStringSet(c(H3.1-Ntail = "ARTKQTARKSTGGKAPRKQLATKAARKSAPATGGVKKPH",
+                         H3.3-Ntail = "ARTKQTARKSTGGKAPRKQLATKAARKSAPSTGGVKKPH"))
+h4_seqs <- AAStringSet(c(H4-Ntail = "SGRGKGGKGLGKGGAKRHRKVLRDNIQGITKPAIRR"))
+unaligned_seqs <- AAStringSetList(H3 = h3_seqs, H4 = h4_seqs)
+aligned_custom_seqs <- alignHistones(unaligned_histones = unaligned_seqs)
+
+# Align mouse histones instead of human
+mouse_unaligned <- histonesFromUniprot(query = c("organism_id:10090", "reviewed:true"))
+aligned_mouse <- alignHistones(unaligned_histones = mouse_unaligned)
+
+# Perform a de novo alignment instead of adding to a profile
+denovo_aligned <- alignHistones(use_profiles = FALSE)
+
+# Pass additional arguments to MAFFT, e.g., to change the gap opening penalty
+alignHistones(op = 3.0)
+}
+
+# Use non-default reference sequences, note that this is not recommended!
+alignHistones(
+  nondefault_refseq_names = c(
+    H1 = "H1.0|Bos|NP_001069955.1 Bos|NP_001069955.1|H1.0 Bos_H1.0_115496898",
+    H2A = "H2A.1|Homo|NP_734466.1 Homo|NP_734466.1|H2A.1 Homo_H2A.1_25092737",
+    H2B = "H2B.1|Canis|XP_005640164.1 Canis|XP_005640164.1|H2B.1 Canis_H2B.1_545554624",
+    H3 = "H3.3|Arabidopsis|NP_195713.1 Arabidopsis|NP_195713.1|H3.3 Arabidopsis_H3.3_15236103",
+    H4 = "canonical_H4|Mus|NP_291074.1 Mus|NP_291074.1|canonical_H4 Mus_canonical_H4_21361209"
+  )
+)
+}
 \references{
 (1) Katoh, K.; Standley, D. M. MAFFT Multiple Sequence Alignment Software
 Version 7: Improvements in Performance and Usability. Molecular Biology and
 Evolution 2013, 30 (4), 772–780. \url{https://doi.org/10.1093/molbev/mst010}.
+
 (2) Draizen, E. J.; Shaytan, A. K.; Mariño-Ramírez, L.; Talbert, P. B.;
 Landsman, D.; Panchenko, A. R. HistoneDB 2.0: A Histone Database with
 Variants—an Integrated Resource to Explore Histones and Their Variants.
