@@ -1,0 +1,33 @@
+http_interactions:
+- request:
+    method: GET
+    uri: https://rest.uniprot.org/uniprotkb/search?query=%28organism_id%3A10090+AND+reviewed%3Atrue%29+AND+family%3A%22histone+H3+family%22&fields=sequence%2Cid&format=tsv&size=25
+  response:
+    status: 200
+    headers:
+      accept-ranges: bytes
+      access-control-allow-credentials: 'true'
+      access-control-allow-headers: DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization
+      access-control-allow-methods: GET, PUT, POST, DELETE, PATCH, OPTIONS
+      access-control-allow-origin: '*'
+      access-control-expose-headers: Link, X-Total-Results, X-UniProt-Release, X-UniProt-Release-Date,
+        X-API-Deployment-Date
+      access-control-max-age: '1728000'
+      cache-control: public, max-age=43200
+      content-encoding: gzip
+      content-length: '266'
+      content-type: text/plain;format=tsv
+      date: Thu, 24 Jul 2025 10:33:52 GMT
+      strict-transport-security: max-age=31536000; includeSubDomains
+      vary:
+      - accept,accept-encoding,x-uniprot-release,x-api-deployment-date
+      - User-Agent
+      x-api-deployment-date: 18-June-2025
+      x-cache: hit cached
+      x-total-results: '5'
+      x-uniprot-release: 2025_03
+      x-uniprot-release-date: 18-June-2025
+    body:
+      string: "Sequence\tEntry Name\nMGPRRKPQTPRRRPSSPAPGPSRQSSSVGSQTLRRRQKFMWLKEIKTLQKSTDLLFRKKPFSMVVREICEKFSRGVDFWWQAQALLALQEAAEAFLIHLFEDAYLLSLHAGRVTLFPKDIQLTRRIRGFEGGLP\tCENPA_MOUSE\nMARTKQTARKSTGGKAPRKQLATKAARKSAPATGGVKKPHRYRPGTVALREIRRYQKSTELLIRKLPFQRLVREIAQDFKTDLRFQSSAVMALQEASEAYLVGLFEDTNLCAIHAKRVTIMPKDIQLARRIRGERA\tH32_MOUSE\nMALTKQTARKSTGGKAPRKQLATKATRKSAPSTGGVKKPHRYRPGTVALREIRRYQKSTELLIRKLPFQRLVREIAQDFKTDLRFQSAAIGALQEASEAYLVGLFEDTNLCAIHAKRVTIMPKDIQLARRIRGERA\tH3C_MOUSE\nMARTKQTARKSTGGKAPRKQLATKAARKSAPATGGVKKPHRYRPGTVALREIRRYQKSTELLIRKLPFQRLVREIAQDFKTDLRFQSSAVMALQEACEAYLVGLFEDTNLCAIHAKRVTIMPKDIQLARRIRGERA\tH31_MOUSE\nMARTKQTARKSTGGKAPRKQLATKAARKSAPSTGGVKKPHRYRPGTVALREIRRYQKSTELLIRKLPFQRLVREIAQDFKTDLRFQSAAIGALQEASEAYLVGLFEDTNLCAIHAKRVTIMPKDIQLARRIRGERA\tH33_MOUSE\n"
+  recorded_at: 2025-07-24 10:33:52
+recorded_with: VCR-vcr/2.0.0
