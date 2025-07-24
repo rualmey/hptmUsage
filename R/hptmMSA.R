@@ -18,6 +18,27 @@
 #' @returns An `AAStringSetList` where each element corresponds to a histone
 #'   family and is an `AAStringSet` object of matching histone variant sequences.
 #' @export
+#' @examples
+#' \dontrun{
+#' # Retrieve all human histone sequences from UniProt (reviewed entries only)
+#' human_histones <- histonesFromUniprot()
+#'
+#' # Retrieve only H3 and H4 sequences
+#' h3_h4_histones <- histonesFromUniprot(histone_families = c("H3", "H4"))
+#'
+#' # Retrieve mouse histones instead of human (Taxon ID = 10090)
+#' mouse_histones <- histonesFromUniprot(query = c("organism_id:10090", "reviewed:true"))
+#'
+#' # Use accession numbers for sequence names instead of entry names
+#' histones_by_accession <- histonesFromUniprot(name_field = "accession")
+#'
+#' # Retrieve human histones (reviewed only) and mouse histones (including unreviewed)
+#' human_mouse_histones <- histonesFromUniprot(
+#'   query = c("organism_id:9606 AND reviewed:true", "organism_id:10090"),
+#'   collapse = " OR "
+#' )
+#'}
+
 histonesFromUniprot <- function(
   histone_families = c("H1", "H2A", "H2B", "H3", "H4"),
   query = c("organism_id:9606", "reviewed:true"),
@@ -38,13 +59,16 @@ histonesFromUniprot <- function(
     "H4" = 'family:"histone H4 family"'
   )
 
+  # the query should be self-contained, with the histone family being added on top, i.e. "(query) AND histone_family"
+  query <- paste0("(", paste0(query, collapse = collapse), ")")
+
   # each histone family is individually requested to UniProt
   family_lookup[histone_families] |>
     purrr::map(\(family_query) {
       res <- UniProt.ws::queryUniProt(
         query = c(query, family_query),
         fields = c("sequence", name_field),
-        collapse = collapse
+        collapse = " AND "
       )
       # name_field "id" results in "Entry.Name", so use column index instead
       stats::setNames(Biostrings::AAStringSet(res$Sequence), res[[2]])
