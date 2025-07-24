@@ -289,7 +289,7 @@ alignHistones <- function(
 
 .check_mafft <- function() {
   mafft_binary <- Sys.which("mafft")
-  if (all(mafft_binary == "")) {
+  if (!nzchar(mafft_binary)) {
     stop(
       "MAFFT was not found, please ensure that MAFFT was properly installed and can be found on PATH.",
       call. = FALSE

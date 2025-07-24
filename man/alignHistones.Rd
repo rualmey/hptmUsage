@@ -94,7 +94,6 @@ denovo_aligned <- alignHistones(use_profiles = FALSE)
 
 # Pass additional arguments to MAFFT, e.g., to change the gap opening penalty
 alignHistones(op = 3.0)
-}
 
 # Use non-default reference sequences, note that this is not recommended!
 alignHistones(
@@ -106,6 +105,7 @@ alignHistones(
     H4 = "canonical_H4|Mus|NP_291074.1 Mus|NP_291074.1|canonical_H4 Mus_canonical_H4_21361209"
   )
 )
+}
 }
 \references{
 (1) Katoh, K.; Standley, D. M. MAFFT Multiple Sequence Alignment Software
