@@ -4,7 +4,8 @@
 #' A Progenesis QIP peptide ion data `.csv` file is cleaned up to make it
 #' compatible with the `QFeatures` framework. This involves subsetting the
 #' quantitative data to one type, e.g., raw abundances, sanitizing sample names,
-#' and generating initial metadata from the Progenesis experimental design.
+#' generating initial metadata from the Progenesis experimental design, and
+#' handling duplicated features.
 #'
 #' @param file The path (`character(1)`) to the Progenesis QIP peptide ion data
 #'   `.csv` file. This file should contain all identified features, including
@@ -22,6 +23,11 @@
 #'   (default `FALSE`)?
 #' @param simplify_column_names Remove pre-/suffixes from sample names (default
 #'   `TRUE`)?
+#' @param duplicates How to handle duplicated features (same sequence, charge,
+#'   and modifications). Can be `"max"` (default, keep feature with highest mean
+#'   abundance across samples), `"sum"` (sum abundances, note that this only
+#'   keeps feature properties of the first encountered duplicate), or `NULL`
+#'   (do nothing).
 #' @returns A `QFeatures` containing the Progenesis QIP dataset.
 #' @export
 #' @seealso The [QFeatures::QFeatures()] class to read about how to manipulate
@@ -47,6 +53,9 @@
 #'
 #' # Do not simplify (remove pre- and suffixes) sample names
 #' readProgenesis("./all_ion_export.csv", simplify_column_names = FALSE)
+#'
+#' # Handle duplicated features by summing their abundances
+#' readProgenesis("./all_ion_export.csv", duplicates = "sum")
 #' \dontshow{
 #' setwd(.old_wd)
 #' }
@@ -55,7 +64,8 @@ readProgenesis <- function(
   quant = "Raw abundance",
   generate_metadata = FALSE,
   overwrite_metadata = FALSE,
-  simplify_column_names = TRUE
+  simplify_column_names = TRUE,
+  duplicates = "max"
 ) {
   # check arguments
   stopifnot(file.exists(file))
@@ -65,6 +75,7 @@ readProgenesis <- function(
       isTRUE(generate_metadata) ||
       (is.character(generate_metadata) && length(generate_metadata) == 1)
   )
+  stopifnot(is.null(duplicates) || (duplicates %in% c("sum", "max") && length(duplicates) == 1))
   # check header
   header <- utils::read.csv(file, header = FALSE, nrows = 3)
   stopifnot(quant %in% header[1, ])
@@ -128,7 +139,7 @@ readProgenesis <- function(
     if (nrow(notes) >= 1) {
       message(
         "Some features had a note:\n",
-        paste0("  Feature ", notes[["feature_number"]], ": ", notes[["notes"]], "\n")
+        paste0("* Feature ", notes[["feature_number"]], ": ", notes[["notes"]], "\n")
       )
     }
   }
@@ -176,6 +187,58 @@ readProgenesis <- function(
       readr::write_csv(metadata, file = outfile)
     }
   }
+
+  # handle duplicates
+  if (!is.null(duplicates)) {
+    dups <- df |>
+      dplyr::add_count(.data[["sequence"]], .data[["charge"]], .data[["mods"]]) |>
+      dplyr::filter(.data[["n"]] > 1)
+
+    if (nrow(dups) > 0) {
+      message(
+        "Found ",
+        dplyr::n_distinct(dups$sequence, dups$charge, dups$mods),
+        " duplicated features (sequence + charge + mods). Resolving using '",
+        duplicates,
+        "' method."
+      )
+
+      if (duplicates == "max") {
+        df <- df |>
+          mutate(
+            .mean_abundance = MatrixGenerics::rowMeans(dplyr::pick(tidyselect::all_of(cleaned_names)), na.rm = TRUE)
+          ) |>
+          dplyr::group_by(.data[["sequence"]], .data[["charge"]], .data[["mods"]]) |>
+          dplyr::slice_max(.data[[".mean_abundance"]], n = 1, with_ties = FALSE) |>
+          dplyr::ungroup() |>
+          # drop temporary column
+          dplyr::select(-.data[[".mean_abundance"]])
+      } else if (duplicates == "sum") {
+        df <- df |>
+          dplyr::group_by(.data[["sequence"]], .data[["charge"]], .data[["mods"]]) |>
+          dplyr::summarise(
+            dplyr::across(tidyselect::all_of(cleaned_names), sum, na.rm = TRUE),
+            dplyr::across(-tidyselect::all_of(cleaned_names), dplyr::first),
+            .groups = "drop"
+          )
+      }
+    }
+  }
+
+  # duplicate_feat <- as_tibble(rowData(pe[["precursorRaw"]]), rownames = NA) |>
+  #   rownames_to_column(var = "pe_idx") |>
+  #   mutate(mean_abundance = assay(pe, "precursorRaw") |> apply(1, mean, na.rm = TRUE)) |>
+  #   group_by(charge, sequence, mods) |>
+  #   mutate(group_size = n()) |>
+  #   filter(group_size > 1)
+  # duplicate_keep <- duplicate_feat |>
+  #   slice_max(mean_abundance) |>
+  #   _$pe_idx
+  # duplicate_filter <- duplicate_feat |>
+  #   filter(!pe_idx %in% duplicate_keep) |>
+  #   _$pe_idx |>
+  #   as.integer()
+  # pe <- pe[!seq_len(nrow(pe[["precursorRaw"]])) %in% duplicate_filter, ]
 
   # return as a QFeatures object
   QFeatures::readQFeatures(

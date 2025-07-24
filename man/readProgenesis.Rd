@@ -9,7 +9,8 @@ readProgenesis(
   quant = "Raw abundance",
   generate_metadata = FALSE,
   overwrite_metadata = FALSE,
-  simplify_column_names = TRUE
+  simplify_column_names = TRUE,
+  duplicates = "max"
 )
 }
 \arguments{
@@ -33,6 +34,12 @@ to the location where the metadata file will be written (e.g.,
 
 \item{simplify_column_names}{Remove pre-/suffixes from sample names (default
 \code{TRUE})?}
+
+\item{duplicates}{How to handle duplicated features (same sequence, charge,
+and modifications). Can be \code{"max"} (default, keep feature with highest mean
+abundance across samples), \code{"sum"} (sum abundances, note that this only
+keeps feature properties of the first encountered duplicate), or \code{NULL}
+(do nothing).}
 }
 \value{
 A \code{QFeatures} containing the Progenesis QIP dataset.
@@ -41,7 +48,8 @@ A \code{QFeatures} containing the Progenesis QIP dataset.
 A Progenesis QIP peptide ion data \code{.csv} file is cleaned up to make it
 compatible with the \code{QFeatures} framework. This involves subsetting the
 quantitative data to one type, e.g., raw abundances, sanitizing sample names,
-and generating initial metadata from the Progenesis experimental design.
+generating initial metadata from the Progenesis experimental design, and
+handling duplicated features.
 }
 \examples{
 \dontshow{
@@ -64,6 +72,9 @@ readProgenesis("./all_ion_export.csv", quant = "Intensity")
 
 # Do not simplify (remove pre- and suffixes) sample names
 readProgenesis("./all_ion_export.csv", simplify_column_names = FALSE)
+
+# Handle duplicated features by summing their abundances
+readProgenesis("./all_ion_export.csv", duplicates = "sum")
 \dontshow{
 setwd(.old_wd)
 }
