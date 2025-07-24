@@ -2,7 +2,7 @@
 % Please edit documentation in R/hptmMSA.R
 \name{histonesFromUniprot}
 \alias{histonesFromUniprot}
-\title{Get histone sequences from UniProt}
+\title{Retrieve Histone Sequences From UniProt}
 \usage{
 histonesFromUniprot(
   histone_families = c("H1", "H2A", "H2B", "H3", "H4"),

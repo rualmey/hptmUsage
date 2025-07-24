@@ -2,7 +2,7 @@
 % Please edit documentation in R/hptmMSA.R
 \name{alignHistones}
 \alias{alignHistones}
-\title{Align histone sequences using MAFFT.}
+\title{Align Histone Sequences Using MAFFT}
 \usage{
 alignHistones(
   unaligned_histones = NULL,
@@ -18,49 +18,68 @@ alignHistones(
 )
 }
 \arguments{
-\item{unaligned_histones}{An \code{AAStringSetList} object containing sequences of
-each histone family to align. If left empty, a default call to
-\code{histonesFromUniprot()} is made, i.e., all five histone families from
-human and reviewed.}
+\item{unaligned_histones}{An optional \code{AAStringSetList} of histone sequences
+to align, by family. If \code{NULL}, a default call to \code{\link[=histonesFromUniprot]{histonesFromUniprot()}}
+is made, i.e., sequences from all five histone families (human and
+reviewed) are retrieved.}
 
-\item{return_alignment}{Whether or not to return the aligned fasta.}
+\item{return_alignment}{A \code{logical(1)} indicating whether to save the
+alignment to \code{.fasta} files. Optional.}
 
-\item{output_path}{A \code{character()} of the path where to store the aligned
-fasta. Ignored if \code{return_alignment = FALSE}.}
+\item{output_path}{A \code{character(1)} specifying the directory to save
+alignment files. Optional.}
 
-\item{overwrite}{Overwrite aligned fasta if already present at
-\code{output_path}? Ignored if \code{return_alignment = FALSE}.}
+\item{overwrite}{A \code{logical(1)} indicating whether to overwrite existing
+files at \code{output_path}. Optional.}
 
-\item{use_profiles}{Use the curated alignments from HistoneDB 2.0 (1) as a
-high-quality base MSA to which new sequences are added, ensuring consistent
-and accurate alignment.
+\item{use_profiles}{A \code{logical(1)} or \code{character()} indicating whether to
+add sequences to existing histone MSA profiles. If \code{TRUE}, uses the curated
+alignments from HistoneDB 2.0 (2). Can also be a \code{character()} specifying
+paths to custom, pre-aligned \code{.fasta} files.}
 
-Can be \code{TRUE} to use profiles of H1, H2A, H2B, H3, H4, respectively, or can
-be a \code{character()} specifying the histone families to use in order, e.g.,
-\code{c("H3", "H4")} of specifying paths to custom pre-aligned \code{.fasta} files.
+\item{nondefault_refseq_names}{An optional \code{character()} of non-default
+reference sequence names. If \code{NULL}, H1.1 and canonical H2A/H2B/H3/H4 are
+used. Be aware that changing this can change hPTM location definition!}
 
-(1) Draizen, E. J.; Shaytan, A. K.; Mariño-Ramírez, L.; Talbert, P. B.;
-Landsman, D.; Panchenko, A. R. HistoneDB 2.0: A Histone Database with
-Variants—an Integrated Resource to Explore Histones and Their Variants.
-Database (Oxford) 2016, 2016, baw014. https://doi.org/10.1093/database/baw014.}
+\item{return_only_original}{A \code{logical(1)} indicating whether to return only
+the sequences present in \code{unaligned_histones} in the MSA. Optional, only
+used in profile mode.}
 
-\item{nondefault_refseq_names}{Names of the reference sequences for each histone family as
-present in the profiles, with \code{NULL} using H1.1 and canonical H2A/H2B/H3/H4.
-Be aware that changing this can change hPTM location definition! Ignored if
-not using profiles.}
+\item{quiet}{A \code{logical(1)} indicating whether to suppress MAFFT output.}
 
-\item{return_only_original}{...}
+\item{num_cores}{An \code{integer(1)} specifying the number of CPU cores to use
+during alignment. Optional, \code{-1} uses all cores.}
 
-\item{quiet}{...}
-
-\item{num_cores}{...}
-
-\item{...}{Additional arguments passed to MAFFT, overriding defaults.}
+\item{...}{Additional arguments passed to MAFFT, overriding any defaults.}
 }
 \value{
-A named list of "unaligned" and "msa", each a named \code{AAStringSetList}
-object, respectively.
+A list containing the unaligned input sequences (\code{unaligned}), the
+multiple sequence alignment (\code{msa}), and optionally the aligned reference
+sequences (\code{msa_ref}) if \code{use_profiles} is not \code{FALSE}. Each list element
+is a named \code{AAStringSetList}. An error is raised if MAFFT fails alignment
+for any histone family.
 }
 \description{
-Align histone sequences using MAFFT.
+Histone sequences can be aligned to prevent location mismatches between
+corresponding hPTMs, e.g, H31S57 vs. H3CS56.
+}
+\details{
+To ensure consistent and accurate alignment regardless of the underlying
+sequences, this alignment is by default added into a predefined MSA profile
+using the MAFFT \code{--add} functionality (1). This predefined MSA profile is by
+default the curated alignment of the corresponding histone family retrieved
+from HistoneDB 2.0 (2).
+
+It is therefore highly recommended to leave these settings at default, so
+that hPTM definition will be consistent, even when the sequences to align
+change.
+}
+\references{
+(1) Katoh, K.; Standley, D. M. MAFFT Multiple Sequence Alignment Software
+Version 7: Improvements in Performance and Usability. Molecular Biology and
+Evolution 2013, 30 (4), 772–780. \url{https://doi.org/10.1093/molbev/mst010}.
+(2) Draizen, E. J.; Shaytan, A. K.; Mariño-Ramírez, L.; Talbert, P. B.;
+Landsman, D.; Panchenko, A. R. HistoneDB 2.0: A Histone Database with
+Variants—an Integrated Resource to Explore Histones and Their Variants.
+Database (Oxford) 2016, 2016, baw014. \url{https://doi.org/10.1093/database/baw014}.
 }
