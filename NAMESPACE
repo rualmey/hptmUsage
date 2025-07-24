@@ -3,6 +3,7 @@
 export(alignHistones)
 export(histonesFromUniprot)
 export(hptmUsageData)
+export(matchHistones)
 export(readProgenesis)
 export(replaceColData)
 importClassesFrom(QFeatures,QFeatures)
