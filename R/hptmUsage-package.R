@@ -6,7 +6,7 @@
 #' @importClassesFrom SummarizedExperiment SummarizedExperiment
 #' @importFrom dplyr across
 #' @importFrom dplyr mutate
-#' @importFrom methods as
+#' @importFrom methods as is
 #' @importFrom rlang .data %||%
 #' @importMethodsFrom SummarizedExperiment rowData rowData<- colData colData<-
 ## usethis namespace: end

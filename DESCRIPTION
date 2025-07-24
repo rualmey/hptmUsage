@@ -24,6 +24,7 @@ Imports:
     ggExtra,
     ggplot2,
     ggrepel,
+    glue,
     hexbin,
     janitor,
     methods,
