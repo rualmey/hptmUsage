@@ -1,5 +1,6 @@
 #' Safely Replace `colData`
 #'
+#' @description
 #' Replaces `colData` of the given `QFeatures` or `SummarizedExperiment`,
 #' including checking for common errors.
 #'

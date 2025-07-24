@@ -1,5 +1,6 @@
 #' Read a Progenesis QIP Peptide Ion Data Export
 #'
+#' @description
 #' A Progenesis QIP peptide ion data `.csv` file is cleaned up to make it
 #' compatible with the `QFeatures` framework. This involves subsetting the
 #' quantitative data to one type, e.g., raw abundances, sanitizing sample names,

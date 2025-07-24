@@ -33,7 +33,7 @@ hptmUsageData <- function(file = NULL) {
 #'   \item{colData}{contains 8 columns of sample metadata, including the "group" (biological factor), "ms_run"/"date_collected"/"prep_batch" (technical factors), and "include"/"outlier" (tags for analysis)}
 #' }
 #' @source <https://www.ebi.ac.uk/pride/archive/projects/PXD028162>
-#' @reference Zijlmans, D. W.; Talon, I.; Verhelst, S.; Bendall, A.;
+#' @references Zijlmans, D. W.; Talon, I.; Verhelst, S.; Bendall, A.;
 #'   Van Nerum, K.; Javali, A.; Malcolm, A. A.; Van Knippenberg, S. S. F. A.;
 #'   Biggins, L.; To, S. K.; Janiszewski, A.; Admiraal, D.; Knops, R.;
 #'   Corthout, N.; Balaton, B. P.; Georgolopoulos, G.; Panda, A.; Bhanu, N. V.;
@@ -64,7 +64,7 @@ hptmUsageData <- function(file = NULL) {
 #'   ...
 #' }
 #' @source <https://www.ebi.ac.uk/pride/archive/projects/PXD009910>
-#' @reference Clerck, L. D.; Willems, S.; Daled, S.; Puyvelde, B. V.;
+#' @references Clerck, L. D.; Willems, S.; Daled, S.; Puyvelde, B. V.;
 #'   Verhelst, S.; Corveleyn, L.; Deforce, D.; Dhaenens, M. An Experimental
 #'   Design to Extract More Information from MS-Based Histone Studies. Molecular
 #'   Omics 2021, 17 (6), 929–938. <https://doi.org/10.1039/D1MO00201E>.
