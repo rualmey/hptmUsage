@@ -225,21 +225,6 @@ readProgenesis <- function(
     }
   }
 
-  # duplicate_feat <- as_tibble(rowData(pe[["precursorRaw"]]), rownames = NA) |>
-  #   rownames_to_column(var = "pe_idx") |>
-  #   mutate(mean_abundance = assay(pe, "precursorRaw") |> apply(1, mean, na.rm = TRUE)) |>
-  #   group_by(charge, sequence, mods) |>
-  #   mutate(group_size = n()) |>
-  #   filter(group_size > 1)
-  # duplicate_keep <- duplicate_feat |>
-  #   slice_max(mean_abundance) |>
-  #   _$pe_idx
-  # duplicate_filter <- duplicate_feat |>
-  #   filter(!pe_idx %in% duplicate_keep) |>
-  #   _$pe_idx |>
-  #   as.integer()
-  # pe <- pe[!seq_len(nrow(pe[["precursorRaw"]])) %in% duplicate_filter, ]
-
   # return as a QFeatures object
   QFeatures::readQFeatures(
     df,
