@@ -133,8 +133,8 @@
       invisible(readProgenesis(testthat::test_path("fixtures", "all_ion_export.csv")))
     Message
       Some features had a note:
-        Feature 6: This feature has a note attached to it!
-        Feature 38342: This feature lost its ID, for example due to feature editing without redoing tags
+      * Feature 6: This feature has a note attached to it!
+      * Feature 38342: This feature lost its ID, for example due to feature editing without redoing tags
       
     Condition
       Warning in `readProgenesis()`:
@@ -147,8 +147,8 @@
       generate_metadata = temp_path)
     Message
       Some features had a note:
-        Feature 6: This feature has a note attached to it!
-        Feature 38342: This feature lost its ID, for example due to feature editing without redoing tags
+      * Feature 6: This feature has a note attached to it!
+      * Feature 38342: This feature lost its ID, for example due to feature editing without redoing tags
       
     Condition
       Warning in `readProgenesis()`:
@@ -164,8 +164,8 @@
       generate_metadata = temp_path, overwrite_metadata = FALSE)
     Message
       Some features had a note:
-        Feature 6: This feature has a note attached to it!
-        Feature 38342: This feature lost its ID, for example due to feature editing without redoing tags
+      * Feature 6: This feature has a note attached to it!
+      * Feature 38342: This feature lost its ID, for example due to feature editing without redoing tags
       
     Condition
       Warning in `readProgenesis()`:
@@ -180,8 +180,8 @@
       generate_metadata = temp_path, overwrite_metadata = TRUE)
     Message
       Some features had a note:
-        Feature 6: This feature has a note attached to it!
-        Feature 38342: This feature lost its ID, for example due to feature editing without redoing tags
+      * Feature 6: This feature has a note attached to it!
+      * Feature 38342: This feature lost its ID, for example due to feature editing without redoing tags
       
     Condition
       Warning in `readProgenesis()`:
