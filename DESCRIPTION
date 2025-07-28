@@ -46,6 +46,7 @@ Imports:
     vctrs,
     vsn
 Suggests:
+    covr,
     ExploreModelMatrix,
     ggmsa,
     S4Vectors,
