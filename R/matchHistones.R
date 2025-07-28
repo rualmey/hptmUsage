@@ -25,153 +25,159 @@ setGeneric(
 
 #' @rdname matchHistones
 #' @param i The index (`integer(1)`) or name (`character(1)`) of the assay to be processed.
+#' @param progress Show a progress bar? Defaults to `TRUE`.
 #' @examples
-#' # TODO
-#' NULL
+#' ncbtoy |>
+#'   matchHistones(aligned_histones, 1)
 setMethod(
   "matchHistones",
   c("QFeatures", "AAStringSetList"),
   function(
     object,
-    i,
     matching_subject,
+    i,
+    progress = TRUE,
     sequence_col = "sequence"
   ) {
     i <- QFeatures:::.normIndex(object, i)
-    purrr::map(
-      i,
-      \(x) `rowData<-`(object[[x]], matchHistones(object[[x]], matching_subject, sequence_col = sequence_col)),
-      .progress = TRUE
-    )
+    if (progress) {
+      pb <- progress::progress_bar$new(
+        total = length(i),
+        show_after = 0,
+        format = "(:spin) [:bar] assay :current of :total"
+      )
+      pb$message("Matching sequences to histones...")
+      # to ensure the bar only is removed once the loop is completed
+      pb$tick(-1)
+    }
+    for (j in i) {
+      if (progress) {
+        pb$tick()
+      }
+      QFeatures::replaceAssay(
+        object,
+        matchHistones(
+          object[[j]],
+          matching_subject,
+          progress = if (progress) pb else FALSE,
+          sequence_col = sequence_col
+        ),
+        j
+      )
+    }
+    # to complete the progress and remove the bar
+    if (progress) {
+      pb$tick()
+    }
+    object
   }
 )
 
-#' @rdname matchHistones
-#' @examples
-#' # TODO
-#' NULL
-# TODO rework this part!
 setMethod(
   "matchHistones",
   c("SummarizedExperiment", "AAStringSetList"),
   function(
     object,
     matching_subject,
+    progress = TRUE,
     sequence_col = "sequence"
   ) {
-    which_pattern_matches <- rowData(object)[[sequence_col]] |>
-      Biostrings::AAStringSet() |>
-      lapply(matching_subject, Biostrings::vwhichPDict, pdict = _) |>
-      lapply(\(x) unlist(x) |> unique())
-    # check for family ambiguity and drop these rows if applicable
-    if (length(matching_subject) > 1) {
-      family_counts <- unlist(which_pattern_matches) |> table()
-      family_ambiguous_row_idx <- names(family_counts)[family_counts > 1] |> as.integer()
-      if (length(family_ambiguous_row_idx) > 0) {
-        print(paste(
-          "Dropping sequences with ambiguous family assignment:",
-          paste(rowData(object)[family_ambiguous_row_idx, sequence_col], collapse = ";")
-        ))
-        object <- object[-family_ambiguous_row_idx, ]
-      }
-    }
+    rd <- rowData(object)
 
-    # get matching histone family from MIndex objects
-    histone_family <- character(length = nrow(object))
-    for (match_family in names(which_pattern_matches)) {
-      histone_family[which_pattern_matches[[match_family]]] <- match_family
-    }
-    histone_family[histone_family == ""] <- NA
-    rowData(object)[["histone_family"]] <- histone_family
-    # flag core histones vs. H1
-    core_histones <- rep.int(TRUE, length(histone_family))
-    core_histones[histone_family == "H1" | is.na(histone_family)] <- FALSE
-    rowData(object)[["core_histone"]] <- core_histones
-    # flag histones with logical
-    histone <- rep.int(FALSE, length(histone_family))
-    histone[!is.na(histone_family)] <- TRUE
-    rowData(object)[["histone"]] <- histone
-
-    # match peptides to all supplied histone family AAStringSet objects
-    # FUTURE TODO use vmatchPDict() instead for faster matching, but not yet implemented in Biostrings (03/2025)
-    pattern_matches <- lapply(
+    # workaround for fast matching as Biostrings::vmatchPDict() is not yet implemented (07/2025)
+    # FUTURE TODO use vmatchPDict() instead
+    sequences <- rd[[sequence_col]]
+    # first use vwhichPDict to quickly get histone family -> feature match
+    match_df <- purrr::imap(
       matching_subject,
-      \(x) sapply(rowData(object)[[sequence_col]], Biostrings::vmatchPattern, x)
-    )
-    # check for multiple matches in one variant
-    position_ambiguous_row_idx <- sapply(
-      pattern_matches,
-      \(x) as.logical(lapply(x, \(x) any(S4Vectors::elementNROWS(x) > 1)))
-    )
-    # combine information from multiple families
-    position_ambiguous_row_idx <- apply(position_ambiguous_row_idx, 1, any)
-    if (any(unlist(position_ambiguous_row_idx))) {
-      print(paste(
-        "Dropping sequences with multiple possible positions per variant:",
-        paste(rowData(object)[position_ambiguous_row_idx, sequence_col], collapse = ";")
-      ))
-      object <- object[!position_ambiguous_row_idx, ]
-      pattern_matches <- lapply(pattern_matches, \(x) x[!position_ambiguous_row_idx])
-    }
+      function(family_sequences, family) {
+        pattern_matches <- Biostrings::vwhichPDict(pdict = Biostrings::AAStringSet(sequences), family_sequences) |>
+          unlist() |>
+          unique()
+        # then do a nested vmatchPattern instead of one top-level vmatchPDict to get histone variant -> feature match
+        # this is quite slow, so limit the features to match and only match families that match the feature
+        # preserve feature number as name so that list_rbind can retrieve this
+        df <- purrr::set_names(sequences[pattern_matches], pattern_matches) |>
+          # here is the nested vmatchPattern
+          purrr::map(\(pattern) Biostrings::vmatchPattern(pattern, family_sequences) |> as.data.frame()) |>
+          purrr::list_rbind(names_to = "idx") |>
+          mutate(idx = as.integer(.data[["idx"]]))
+        if (nrow(df) == 0) {
+          return(NULL)
+        }
+        df |>
+          tibble::as_tibble() |>
+          mutate(
+            histone = TRUE,
+            histone_family = family,
+            core_histone = if (family == "H1") FALSE else TRUE,
+            histone_variant = purrr::map_chr(.data[["group"]], \(x) names(family_sequences)[[x]]),
+            start_index = .data[["start"]] - 1L, # do not count initiator methionine
+            end_index = .data[["end"]] - 1L, # do not count initiator methionine
+            .keep = "unused"
+          ) |>
+          dplyr::select(-c(.data[["group_name"]], .data[["width"]]))
+      }
+    ) |>
+      dplyr::bind_rows()
 
-    # create histone groups from MIndex objects
-    histone_group <- lapply(pattern_matches, .mindex_list_to_protein_group)
-    # merge matches from different families into one vector if applicable
-    if (length(histone_group) > 1) {
-      histone_group <- do.call(\(...) paste0(...), histone_group) |>
-        sapply(\(x) if (x == "") NA else x)
-    } else {
-      histone_group <- sapply(histone_group[[1]], \(x) if (x == "") NA else x)
+    # "error" checking
+    if (nrow(match_df) == 0) {
+      stop("No histone sequences could be matched, please check your arguments")
     }
-    rowData(object)[["histone_group"]] <- histone_group
+    fam_ambiguous_rows <- match_df |>
+      dplyr::distinct(.data[["idx"]], .data[["histone_family"]]) |>
+      dplyr::count(.data[["idx"]]) |>
+      dplyr::filter(.data[["n"]] > 1) |>
+      dplyr::pull(.data[["idx"]])
+    pos_ambiguous_rows <- match_df |>
+      dplyr::group_by(.data[["idx"]], .data[["histone_variant"]]) |>
+      dplyr::filter(dplyr::n() > 1) |>
+      dplyr::pull(.data[["idx"]]) |>
+      unique()
+    rows_to_drop <- c()
+    if (length(fam_ambiguous_rows) > 0) {
+      message(
+        "Dropping sequences with ambiguous family assignment: ",
+        paste(rd[fam_ambiguous_rows, sequence_col], collapse = ", ")
+      )
+      rows_to_drop <- c(rows_to_drop, fam_ambiguous_rows)
+    }
+    if (length(pos_ambiguous_rows) > 0) {
+      message(
+        "Dropping sequences with multiple possible positions per variant: ",
+        paste(rd[pos_ambiguous_rows, sequence_col], collapse = ";")
+      )
+      rows_to_drop <- c(rows_to_drop, pos_ambiguous_rows)
+    }
+    rows_to_drop <- unique(rows_to_drop)
 
-    # create index positions from MIndex objects
-    start_idx <- lapply(pattern_matches, .mindex_list_to_idx, start = TRUE)
-    # merge start indexes from different families into one vector if applicable
-    if (length(start_idx) > 1) {
-      start_idx <- do.call(\(...) mapply(c, ..., MoreArgs = list(use.names = FALSE)), start_idx) |>
-        lapply(\(x) if (length(x) == 0) NA else x)
-    } else {
-      start_idx <- lapply(start_idx[[1]], \(x) if (length(x) == 0) NA else x)
+    # combine variants of the same family
+    match_summary <- match_df |>
+      dplyr::group_by(.data[["idx"]]) |>
+      dplyr::summarise(
+        histone = dplyr::first(.data[["histone"]]),
+        histone_family = dplyr::first(.data[["histone_family"]]),
+        core_histone = dplyr::first(.data[["core_histone"]]),
+        histone_group = paste(.data[["histone_variant"]], collapse = "/"),
+        start_index = list(.data[["start_index"]]),
+        end_index = list(.data[["end_index"]]),
+        .groups = "drop"
+      ) |>
+      as("DataFrame")
+
+    # combine with original rowData, make sure to preserve order
+    rd[["idx"]] <- as.integer(rownames(rd))
+    rd <- S4Vectors::merge(rd, match_summary, by = "idx", all.x = TRUE)
+    # idx is a character so sorts like 1, 10, 100, ...
+    rownames(rd) <- as.character(rd[["idx"]])
+    rd[["idx"]] <- NULL
+    SummarizedExperiment::rowData(object) <- rd
+
+    if (length(rows_to_drop) > 0) {
+      object <- object[-rows_to_drop, ]
     }
-    rowData(object)[["start_index"]] <- start_idx
-    # create end positions from MIndex objects
-    end_idx <- lapply(pattern_matches, .mindex_list_to_idx, start = FALSE)
-    # merge end indexes from different families into one vector if applicable
-    if (length(end_idx) > 1) {
-      end_idx <- do.call(\(...) mapply(c, ..., MoreArgs = list(use.names = FALSE)), end_idx) |>
-        lapply(\(x) if (length(x) == 0) NA else x)
-    } else {
-      end_idx <- lapply(end_idx[[1]], \(x) if (length(x) == 0) NA else x)
-    }
-    rowData(object)[["end_index"]] <- end_idx
 
     object
   }
-)
-
-# Convert a list of MIndex object into a character vector of all proteins matching the
-# sequence
-#
-# @param pattern_matches A list of MIndex objects containing the match between
-# @importMethodsFrom Biostrings names
-.mindex_list_to_protein_group <- function(pattern_matches) {
-  mapply(
-    \(x, y) paste(x[y], collapse = "/"),
-    lapply(pattern_matches, names),
-    lapply(pattern_matches, \(x) S4Vectors::elementNROWS(x) |> as.logical())
-  )
-}
-
-# Convert a list of MIndex object into a list of integer vectors of the start/end
-# indexes of the sequence in the matching proteins
-#
-# @param pattern_matches A list of MIndex objects containing the match between
-# @param start If `TRUE`, returns the start indexes, otherwise returns the end indexes
-.mindex_list_to_idx <- function(pattern_matches, start = TRUE) {
-  mapply(
-    \(x, y) as.integer(x[y]) - 1L, # - 1 because N-term methionine should get index 0
-    lapply(pattern_matches, if (start) Biostrings::startIndex else Biostrings::endIndex),
-    lapply(pattern_matches, \(x) S4Vectors::elementNROWS(x) |> as.logical())
-  )
-}
+) # TODO progress bar in SE, in parallel?

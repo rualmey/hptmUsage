@@ -3,14 +3,17 @@
 \name{matchHistones}
 \alias{matchHistones}
 \alias{matchHistones,QFeatures,AAStringSetList-method}
-\alias{matchHistones,SummarizedExperiment,AAStringSetList-method}
 \title{Match Sequences to Histone Variants}
 \usage{
 matchHistones(object, matching_subject, ..., sequence_col = "sequence")
 
-\S4method{matchHistones}{QFeatures,AAStringSetList}(object, i, matching_subject, sequence_col = "sequence")
-
-\S4method{matchHistones}{SummarizedExperiment,AAStringSetList}(object, matching_subject, sequence_col = "sequence")
+\S4method{matchHistones}{QFeatures,AAStringSetList}(
+  object,
+  matching_subject,
+  i,
+  progress = TRUE,
+  sequence_col = "sequence"
+)
 }
 \arguments{
 \item{object}{The \code{QFeatures} or \code{SummarizedExperiment} object in which the
@@ -25,6 +28,8 @@ from \code{\link[=alignHistones]{alignHistones()}}.}
 \item{sequence_col}{The column name (\code{character(1)}) containing the sequences.}
 
 \item{i}{The index (\code{integer(1)}) or name (\code{character(1)}) of the assay to be processed.}
+
+\item{progress}{Show a progress bar? Defaults to \code{TRUE}.}
 }
 \value{
 A \code{QFeatures} or \code{SummarizedExperiment} (same as supplied) with
@@ -35,8 +40,6 @@ Adds columns to the \code{rowData} of the given \code{QFeatures} or \code{Summar
 including checking for common errors.
 }
 \examples{
-# TODO
-NULL
-# TODO
-NULL
+ncbtoy |>
+  matchHistones(aligned_histones, 1)
 }
