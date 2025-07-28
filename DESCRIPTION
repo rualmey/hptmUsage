@@ -46,6 +46,7 @@ Imports:
     vctrs,
     vsn
 Suggests:
+    bench,
     covr,
     ExploreModelMatrix,
     ggmsa,
