@@ -27,6 +27,7 @@ Imports:
     glue,
     hexbin,
     janitor,
+    MatrixGenerics,
     methods,
     msqrob2,
     plotly,

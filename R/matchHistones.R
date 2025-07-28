@@ -25,10 +25,12 @@ setGeneric(
 
 #' @rdname matchHistones
 #' @param i The index (`integer(1)`) or name (`character(1)`) of the assay to be processed.
-#' @param progress Show a progress bar? Defaults to `TRUE`.
+#' @param progress Show a progress bar (`logical(1)`)? Defaults to `TRUE`.
 #' @examples
+#' \dontrun{
 #' ncbtoy |>
-#'   matchHistones(aligned_histones, 1)
+#'   matchHistones(aligned_histones$unaligned, 1)
+#'}
 setMethod(
   "matchHistones",
   c("QFeatures", "AAStringSetList"),
@@ -40,39 +42,29 @@ setMethod(
     sequence_col = "sequence"
   ) {
     i <- QFeatures:::.normIndex(object, i)
-    if (progress) {
-      pb <- progress::progress_bar$new(
-        total = length(i),
-        show_after = 0,
-        format = "(:spin) [:bar] assay :current of :total"
-      )
-      pb$message("Matching sequences to histones...")
-      # to ensure the bar only is removed once the loop is completed
-      pb$tick(-1)
-    }
     for (j in i) {
-      if (progress) {
-        pb$tick()
-      }
       QFeatures::replaceAssay(
         object,
         matchHistones(
           object[[j]],
           matching_subject,
-          progress = if (progress) pb else FALSE,
+          progress = progress,
           sequence_col = sequence_col
         ),
         j
       )
     }
-    # to complete the progress and remove the bar
-    if (progress) {
-      pb$tick()
-    }
     object
   }
 )
 
+#' @rdname matchHistones
+#' @param progress Show a progress bar? Defaults to `TRUE`.
+#' @examples
+#' \dontrun{
+#' ncbtoy[[1]] |>
+#'   matchHistones(aligned_histones$unaligned)
+#'}
 setMethod(
   "matchHistones",
   c("SummarizedExperiment", "AAStringSetList"),
@@ -83,6 +75,10 @@ setMethod(
     sequence_col = "sequence"
   ) {
     rd <- rowData(object)
+
+    if (isTRUE(progress)) {
+      progress <- list(name = "Matching sequences", show_after = 0, type = "tasks")
+    }
 
     # workaround for fast matching as Biostrings::vmatchPDict() is not yet implemented (07/2025)
     # FUTURE TODO use vmatchPDict() instead
@@ -117,7 +113,8 @@ setMethod(
             .keep = "unused"
           ) |>
           dplyr::select(-c(.data[["group_name"]], .data[["width"]]))
-      }
+      },
+      .progress = progress
     ) |>
       dplyr::bind_rows()
 

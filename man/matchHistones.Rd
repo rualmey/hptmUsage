@@ -3,6 +3,7 @@
 \name{matchHistones}
 \alias{matchHistones}
 \alias{matchHistones,QFeatures,AAStringSetList-method}
+\alias{matchHistones,SummarizedExperiment,AAStringSetList-method}
 \title{Match Sequences to Histone Variants}
 \usage{
 matchHistones(object, matching_subject, ..., sequence_col = "sequence")
@@ -11,6 +12,13 @@ matchHistones(object, matching_subject, ..., sequence_col = "sequence")
   object,
   matching_subject,
   i,
+  progress = TRUE,
+  sequence_col = "sequence"
+)
+
+\S4method{matchHistones}{SummarizedExperiment,AAStringSetList}(
+  object,
+  matching_subject,
   progress = TRUE,
   sequence_col = "sequence"
 )
@@ -40,6 +48,12 @@ Adds columns to the \code{rowData} of the given \code{QFeatures} or \code{Summar
 including checking for common errors.
 }
 \examples{
+\dontrun{
 ncbtoy |>
-  matchHistones(aligned_histones, 1)
+  matchHistones(aligned_histones$unaligned, 1)
+}
+\dontrun{
+ncbtoy[[1]] |>
+  matchHistones(aligned_histones$unaligned)
+}
 }
