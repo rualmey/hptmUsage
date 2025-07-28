@@ -19,6 +19,7 @@ hptmUsageData <- function(file = NULL) {
 
 #' Example hPTM Data
 #'
+#' @description
 #' A minimally preprocessed `QFeatures` of hPTM data for testing and
 #' demonstration purposes. The samples consist of bottom-up histone extracts
 #' from naive (condition_A) and primed (condition_B) stem cell cultures as
@@ -51,6 +52,7 @@ hptmUsageData <- function(file = NULL) {
 
 #' hPTM Benchmark Data
 #'
+#' @description
 #' A preprocessed `QFeatures` of hPTM data, functioning as a benchmark for
 #' downstream analysis and statistics. The samples consist of commercial histone
 #' extracts treated with a histone deacetylase (HDAC1) in a time-lapse design as
@@ -72,3 +74,35 @@ hptmUsageData <- function(file = NULL) {
 #' benchmark |>
 #'   show()
 "benchmark"
+
+#' Aligned Human Histones
+#'
+#' @description
+#' A default call to [alignHistones()] retrieved all human histone variants from
+#' UniProt (reviewed entries only, "2025-07-28 08:32:03 UTC") and added them to
+#' the predefined (HistoneDB 2.0 (1)) MSA profile.
+#'
+#' @format
+#' A `list` of three `AAStringSetList` objects, each containing five elements
+#' corresponding to the five histone families (H1, H2A, H2B, H3, H4):
+#' \describe{
+#'   \item{unaligned}{`AAStringSetList` containing the unaligned histone sequences}
+#'   \item{msa}{`AAStringSetList` containing the aligned histone sequences after adding each sequence to the curated MSA profile of the corresponding family}
+#'   \item{msa_ref}{`AAStringSetList` containing the aligned reference sequences for each family}
+#' }
+#' @references
+#' (1) Draizen, E. J.; Shaytan, A. K.; Mariño-Ramírez, L.; Talbert, P. B.;
+#' Landsman, D.; Panchenko, A. R. HistoneDB 2.0: A Histone Database with
+#' Variants—an Integrated Resource to Explore Histones and Their Variants.
+#' Database (Oxford) 2016, 2016, baw014. <https://doi.org/10.1093/database/baw014>.
+#' @examples
+#' # List all Histone H3 variants in the object
+#' aligned_histones$unaligned$H3 |>
+#'   names()
+#' # Show the MSA of histone family H3
+#' aligned_histones$msa$h3 |>
+#'   print()
+#' # Show the aligned reference sequences
+#' aligned_histones$msa_ref |>
+#'   purrr::walk(print)
+"aligned_histones"
