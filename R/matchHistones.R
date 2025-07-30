@@ -26,6 +26,8 @@ setGeneric(
 #' @rdname matchHistones
 #' @param i The index (`integer(1)`) or name (`character(1)`) of the assay to be processed.
 #' @param progress Show a progress bar (`logical(1)`)? Defaults to `TRUE`.
+#' @param drop_ambiguous Drop family- or position-ambiguous features? Defaults
+#'   to `TRUE`.
 #' @examples
 #' \dontrun{
 #' ncbtoy |>
@@ -39,19 +41,26 @@ setMethod(
     matching_subject,
     i,
     progress = TRUE,
+    drop_ambiguous = TRUE,
     sequence_col = "sequence"
   ) {
     i <- QFeatures:::.normIndex(object, i)
     for (j in i) {
-      QFeatures::replaceAssay(
+      object <- QFeatures::replaceAssay(
         object,
         matchHistones(
           object[[j]],
           matching_subject,
           progress = progress,
-          sequence_col = sequence_col
+          sequence_col = sequence_col,
+          drop_ambiguous = FALSE
         ),
         j
+      )
+    }
+    if (isTRUE(drop_ambiguous)) {
+      object <- suppressMessages(
+        QFeatures::filterFeatures(object, ~ !ambiguous_match, i, keep = TRUE)
       )
     }
     object
@@ -60,6 +69,8 @@ setMethod(
 
 #' @rdname matchHistones
 #' @param progress Show a progress bar? Defaults to `TRUE`.
+#' @param drop_ambiguous Drop family- or position-ambiguous features? Defaults
+#'   to `TRUE`.
 #' @examples
 #' \dontrun{
 #' ncbtoy[[1]] |>
@@ -72,6 +83,7 @@ setMethod(
     object,
     matching_subject,
     progress = TRUE,
+    drop_ambiguous = TRUE,
     sequence_col = "sequence"
   ) {
     rd <- rowData(object)
@@ -90,6 +102,9 @@ setMethod(
         pattern_matches <- Biostrings::vwhichPDict(pdict = Biostrings::AAStringSet(sequences), family_sequences) |>
           unlist() |>
           unique()
+        if (length(pattern_matches) == 0) {
+          return(NULL)
+        }
         # then do a nested vmatchPattern instead of one top-level vmatchPDict to get histone variant -> feature match
         # this is quite slow, so limit the features to match and only match families that match the feature
         # preserve feature number as name so that list_rbind can retrieve this
@@ -98,9 +113,6 @@ setMethod(
           purrr::map(\(pattern) Biostrings::vmatchPattern(pattern, family_sequences) |> as.data.frame()) |>
           purrr::list_rbind(names_to = "idx") |>
           mutate(idx = as.integer(.data[["idx"]]))
-        if (nrow(df) == 0) {
-          return(NULL)
-        }
         df |>
           tibble::as_tibble() |>
           mutate(
@@ -112,7 +124,7 @@ setMethod(
             end_index = .data[["end"]] - 1L, # do not count initiator methionine
             .keep = "unused"
           ) |>
-          dplyr::select(-c(.data[["group_name"]], .data[["width"]]))
+          dplyr::select(-tidyselect::all_of(c("group_name", "width")))
       },
       .progress = progress
     ) |>
@@ -135,14 +147,14 @@ setMethod(
     rows_to_drop <- c()
     if (length(fam_ambiguous_rows) > 0) {
       message(
-        "Dropping sequences with ambiguous family assignment: ",
+        "Sequences with ambiguous family assignment: ",
         paste(rd[fam_ambiguous_rows, sequence_col], collapse = ", ")
       )
       rows_to_drop <- c(rows_to_drop, fam_ambiguous_rows)
     }
     if (length(pos_ambiguous_rows) > 0) {
       message(
-        "Dropping sequences with multiple possible positions per variant: ",
+        "Sequences with multiple possible positions per variant: ",
         paste(rd[pos_ambiguous_rows, sequence_col], collapse = ";")
       )
       rows_to_drop <- c(rows_to_drop, pos_ambiguous_rows)
@@ -169,12 +181,14 @@ setMethod(
     # idx is a character so sorts like 1, 10, 100, ...
     rownames(rd) <- as.character(rd[["idx"]])
     rd[["idx"]] <- NULL
-    SummarizedExperiment::rowData(object) <- rd
+    rowData(object) <- rd
 
-    if (length(rows_to_drop) > 0) {
+    rowData(object)[["ambiguous_match"]] <- FALSE
+    rowData(object)[rows_to_drop, "ambiguous_match"] <- TRUE
+    if (length(rows_to_drop) > 0 && isTRUE(drop_ambiguous)) {
       object <- object[-rows_to_drop, ]
     }
 
     object
   }
-) # TODO progress bar in SE, in parallel?
+)

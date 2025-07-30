@@ -13,6 +13,7 @@ matchHistones(object, matching_subject, ..., sequence_col = "sequence")
   matching_subject,
   i,
   progress = TRUE,
+  drop_ambiguous = TRUE,
   sequence_col = "sequence"
 )
 
@@ -20,6 +21,7 @@ matchHistones(object, matching_subject, ..., sequence_col = "sequence")
   object,
   matching_subject,
   progress = TRUE,
+  drop_ambiguous = TRUE,
   sequence_col = "sequence"
 )
 }
@@ -38,6 +40,9 @@ from \code{\link[=alignHistones]{alignHistones()}}.}
 \item{i}{The index (\code{integer(1)}) or name (\code{character(1)}) of the assay to be processed.}
 
 \item{progress}{Show a progress bar? Defaults to \code{TRUE}.}
+
+\item{drop_ambiguous}{Drop family- or position-ambiguous features? Defaults
+to \code{TRUE}.}
 }
 \value{
 A \code{QFeatures} or \code{SummarizedExperiment} (same as supplied) with
