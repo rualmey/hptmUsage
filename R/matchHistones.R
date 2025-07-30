@@ -17,9 +17,7 @@
 #' @name matchHistones
 setGeneric(
   "matchHistones",
-  function(object, matching_subject, ..., sequence_col = "sequence") {
-    standardGeneric("matchHistones")
-  },
+  function(object, matching_subject, ..., sequence_col = "sequence") standardGeneric("matchHistones"),
   signature = c("object", "matching_subject")
 )
 
