@@ -22,7 +22,7 @@ setGeneric(
 )
 
 #' @rdname matchHistones
-#' @param i The index (`integer(1)`) or name (`character(1)`) of the assay to be processed.
+#' @param i The index (`integer()`) or name (`character()`) of the assay(s) to be processed.
 #' @param progress Show a progress bar (`logical(1)`)? Defaults to `TRUE`.
 #' @param drop_ambiguous Drop family- or position-ambiguous features? Defaults
 #'   to `TRUE`.

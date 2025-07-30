@@ -37,7 +37,7 @@ from \code{\link[=alignHistones]{alignHistones()}}.}
 
 \item{sequence_col}{The column name (\code{character(1)}) containing the sequences.}
 
-\item{i}{The index (\code{integer(1)}) or name (\code{character(1)}) of the assay to be processed.}
+\item{i}{The index (\code{integer()}) or name (\code{character()}) of the assay(s) to be processed.}
 
 \item{progress}{Show a progress bar? Defaults to \code{TRUE}.}
 
