@@ -24,7 +24,6 @@ Imports:
     ggExtra,
     ggplot2,
     ggrepel,
-    glue,
     hexbin,
     janitor,
     MatrixGenerics,
@@ -66,6 +65,7 @@ Collate:
     'hptmMSA.R'
     'hptmUsage-package.R'
     'matchHistones.R'
+    'processMods.R'
     'readProgenesis.R'
     'replaceColData.R'
     'zzz.R'
