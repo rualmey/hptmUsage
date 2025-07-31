@@ -352,9 +352,9 @@ alignHistones <- function(
   Biostrings::writeXStringSet(unaligned_set, in_fasta)
 
   cmd_args <- if (!is.na(profile_path)) {
-    glue::glue("{mafft_params} --add {shQuote(in_fasta)} {shQuote(profile_path)} > {shQuote(out_fasta)}")
+    stringr::str_glue("{mafft_params} --add {shQuote(in_fasta)} {shQuote(profile_path)} > {shQuote(out_fasta)}")
   } else {
-    glue::glue("{mafft_params} {shQuote(in_fasta)} > {shQuote(out_fasta)}")
+    stringr::str_glue("{mafft_params} {shQuote(in_fasta)} > {shQuote(out_fasta)}")
   }
 
   status <- system2(mafft_binary, args = cmd_args)
