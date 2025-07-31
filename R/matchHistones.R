@@ -179,6 +179,10 @@ setMethod(
     # idx is a character so sorts like 1, 10, 100, ...
     rownames(rd) <- as.character(rd[["idx"]])
     rd[["idx"]] <- NULL
+
+    # fix NA where appropriate
+    rd$histone[is.na(rd$histone)] <- FALSE
+    rd$core_histone[is.na(rd$core_histone)] <- FALSE
     rowData(object) <- rd
 
     rowData(object)[["ambiguous_match"]] <- FALSE
