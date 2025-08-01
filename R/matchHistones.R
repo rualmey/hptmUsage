@@ -183,6 +183,8 @@ setMethod(
     # fix NA where appropriate
     rd$histone[is.na(rd$histone)] <- FALSE
     rd$core_histone[is.na(rd$core_histone)] <- FALSE
+    rd$start_index[is.na(rd$start_index)] <- NA_integer_
+    rd$end_index[is.na(rd$end_index)] <- NA_integer_
     rowData(object) <- rd
 
     rowData(object)[["ambiguous_match"]] <- FALSE

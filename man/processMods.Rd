@@ -2,7 +2,8 @@
 % Please edit documentation in R/processMods.R
 \name{processMods}
 \alias{processMods}
-\alias{processMods2}
+\alias{processMods,QFeatures,list-method}
+\alias{processMods,SummarizedExperiment,list-method}
 \title{Process Histone Modifications}
 \usage{
 processMods(
@@ -15,10 +16,19 @@ processMods(
   rename_mods = NULL
 )
 
-processMods2(
+\S4method{processMods}{QFeatures,list}(
   object,
   msa,
-  ...,
+  i,
+  mod_format = c("progenesis", "progenesis_sw"),
+  unmods = c("K"),
+  strip_mods = list(Propionyl = c("K", "N-term")),
+  rename_mods = NULL
+)
+
+\S4method{processMods}{SummarizedExperiment,list}(
+  object,
+  msa,
   mod_format = c("progenesis", "progenesis_sw"),
   unmods = c("K"),
   strip_mods = list(Propionyl = c("K", "N-term")),
@@ -36,11 +46,11 @@ element contains sequences of one histone family. For example, the
 
 \item{...}{Additional arguments passed to specific methods.}
 
-\item{mod_format}{The format of the modification string. One of:
+\item{mod_format}{The format of the modification string. Defaults to
+\code{"progenesis"}. Must be one of:
 \itemize{
-\item \code{"progenesis"} = "\link{loc} mod (aa)|..."
-\item \code{"progenesis_sw"} = "\link{loc} (aa) mod|..."
-Defaults to \code{"progenesis"}.
+\item \code{"progenesis"} = "[loc] mod (aa)|..."
+\item \code{"progenesis_sw"} = "[loc] (aa) mod|..."
 }}
 
 \item{unmods}{A \code{character()} of amino acids to which "Unmod" pseudo-hPTMs
@@ -52,6 +62,8 @@ modifications to strip. Optional, \code{NULL} disables stripping mods.}
 \item{rename_mods}{A \code{list()} of two-sided formulas where the LHS is the old
 name and the RHS the new name (e.g., \code{"old" ~ "new"}) specifying how to
 rename hPTMs. Optional.}
+
+\item{i}{The index (\code{integer()}) or name (\code{character()}) of the assay(s) to be processed.}
 }
 \value{
 A \code{QFeatures} or \code{SummarizedExperiment} (same as supplied) with the rowData
@@ -62,9 +74,10 @@ hPTMs:
 \item "mods_var" = location within histone variant(s)
 \item "mods_msa" = location within histone variant(s) after multiple sequence alignment (see \code{\link[=alignHistones]{alignHistones()}})
 \item "mods_ref" = corresponding location within the aligned reference sequence (see \code{\link[=alignHistones]{alignHistones()}}), only when \code{msa} contains "msa_ref"
-One more column is added: "precursor", which is the ProForma combination of
-sequence, mods, and charge.
 }
+
+One additional column is added: "precursor", which is the ProForma combination of
+sequence, mods, and charge.
 }
 \description{
 hPTMs are rewritten in a common format ("aa|loc|mod;..."), for example
@@ -74,16 +87,14 @@ within a peptide to the matching histone variant(s). It also allows to add
 chemical derivatization), and rename hPTMs (e.g., from "Trimethyl" to "Me3").
 }
 \examples{
-\dontrun{
-se <- ncbtoy[[1]] |>
-  matchHistones(aligned_histones$unaligned)
+qf <- matchHistones(ncbtoy, aligned_histones$unaligned, 1)
 
 # in this dataset, mods follow the "progenesis_sw" format
-process_mods(se, aligned_histones, 1, mod_format = "progenesis_sw")
+processMods(qf, aligned_histones, 1, mod_format = "progenesis_sw")
 
 # "Unmod" can be added to other amino acids and we can remove chemical artifacts
-process_mods(
-  se,
+processMods(
+  qf,
   aligned_histones,
   1,
   mod_format = "progenesis_sw",
@@ -92,12 +103,32 @@ process_mods(
 )
 
 # maybe we would like to write out hPTMs in full
-process_mods(
-  se,
+processMods(
+  qf,
   aligned_histones,
   1,
   mod_format = "progenesis_sw",
   rename_mods = list("Ac" ~ "Acetyl", "Me2" ~ "Dimethyl", "Me3" ~ "Trimethyl")
 )
-}
+se <- matchHistones(ncbtoy[[1]], aligned_histones$unaligned)
+
+# in this dataset, mods follow the "progenesis_sw" format
+processMods(se, aligned_histones, mod_format = "progenesis_sw")
+
+# "Unmod" can be added to other amino acids and we can remove chemical artifacts
+processMods(
+  se,
+  aligned_histones,
+  mod_format = "progenesis_sw",
+  unmods = c("K", "R"),
+  strip_mods = list(Fo = c("K"))
+)
+
+# maybe we prefer to write out hPTMs in full
+processMods(
+  se,
+  aligned_histones,
+  mod_format = "progenesis_sw",
+  rename_mods = list("Ac" ~ "Acetyl", "Me2" ~ "Dimethyl", "Me3" ~ "Trimethyl")
+)
 }
