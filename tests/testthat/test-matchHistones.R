@@ -73,9 +73,9 @@ test_that("matchHistones works for SummarizedExperiment", {
   expect_equal(unlist(rd_res["5", "start_index"]), 0)
   expect_equal(unlist(rd_res["5", "end_index"]), 4)
 
-  expect_true(is.na(rd_res["7", "histone"]))
+  expect_false(rd_res["7", "histone"])
   expect_true(is.na(rd_res["7", "histone_family"]))
-  expect_true(is.na(rd_res["7", "core_histone"]))
+  expect_false(rd_res["7", "core_histone"])
   expect_true(is.na(rd_res["7", "histone_group"]))
   expect_true(is.na(rd_res["7", "start_index"]))
   expect_true(is.na(rd_res["7", "end_index"]))
