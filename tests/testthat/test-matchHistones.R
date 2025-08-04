@@ -26,15 +26,13 @@ test_that("matchHistones works for SummarizedExperiment", {
     )
   )
 
-  suppressMessages(expect_message(
-    matchHistones(se, histone_seqs, progress = FALSE),
-    "Sequences with ambiguous family assignment: KQT"
-  ))
-  suppressMessages(expect_message(
-    matchHistones(se, histone_seqs, progress = FALSE),
+  expect_message(
+    expect_message(
+      res_se <- matchHistones(se, histone_seqs, progress = FALSE),
+      "Sequences with ambiguous family assignment: KQT"
+    ),
     "Sequences with multiple possible positions per variant: SGRG"
-  ))
-  res_se <- suppressMessages(matchHistones(se, histone_seqs, progress = FALSE))
+  )
 
   expect_s4_class(res_se, "SummarizedExperiment")
   expect_equal(nrow(res_se), 5)
