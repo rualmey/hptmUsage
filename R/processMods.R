@@ -54,10 +54,10 @@ setGeneric(
   signature = c("object", "msa")
 )
 
-# TODO
 #' @rdname processMods
 #' @param i The index (`integer()`) or name (`character()`) of the assay(s) to be processed.
 #' @examples
+#' \dontrun{
 #' qf <- matchHistones(ncbtoy, aligned_histones$unaligned, 1)
 #'
 #' # in this dataset, mods follow the "progenesis_sw" format
@@ -81,6 +81,7 @@ setGeneric(
 #'   mod_format = "progenesis_sw",
 #'   rename_mods = list("Ac" ~ "Acetyl", "Me2" ~ "Dimethyl", "Me3" ~ "Trimethyl")
 #' )
+#'}
 setMethod(
   "processMods",
   c("QFeatures", "list"),
@@ -93,12 +94,29 @@ setMethod(
     strip_mods = list(Propionyl = c("K", "N-term")),
     rename_mods = NULL
   ) {
-    ...
+    i <- QFeatures:::.normIndex(object, i)
+    for (j in i) {
+      object <- QFeatures::replaceAssay(
+        object,
+        processMods(
+          object[[j]],
+          msa,
+          mod_format = mod_format,
+          unmods = unmods,
+          strip_mods = strip_mods,
+          rename_mods = rename_mods
+        ),
+        j
+      )
+    }
+    object
   }
 )
 
+
 #' @rdname processMods
 #' @examples
+#' \dontrun{
 #' se <- matchHistones(ncbtoy[[1]], aligned_histones$unaligned)
 #'
 #' # in this dataset, mods follow the "progenesis_sw" format
@@ -120,6 +138,7 @@ setMethod(
 #'   mod_format = "progenesis_sw",
 #'   rename_mods = list("Ac" ~ "Acetyl", "Me2" ~ "Dimethyl", "Me3" ~ "Trimethyl")
 #' )
+#'}
 setMethod(
   "processMods",
   c("SummarizedExperiment", "list"),
@@ -272,7 +291,8 @@ setMethod(
     dplyr::case_when(
       loc == "N-term" ~ "N-term",
       loc == "C-term" ~ "C-term",
-      .default = stringr::str_sub(seq, as.integer(loc), as.integer(loc))
+      # warning "NAs introduced by coercion" due to seq and loc possibly having different length, works regardless
+      .default = suppressWarnings(stringr::str_sub(seq, as.integer(loc), as.integer(loc)))
     )
   })
 }
@@ -299,7 +319,8 @@ setMethod(
     pos_order <- dplyr::case_when(
       all_pos == "N-term" ~ -Inf,
       all_pos == "C-term" ~ Inf,
-      .default = as.integer(all_pos)
+      # warning "NAs introduced by coercion" due to seq and loc possibly having different length, works regardless
+      .default = suppressWarnings(as.integer(all_pos))
     )
 
     sorted_order <- order(pos_order)
@@ -336,7 +357,8 @@ setMethod(
     loc_num <- dplyr::case_when(
       loc == "N-term" ~ 1L,
       loc == "C-term" ~ nchar(seq),
-      .default = as.integer(loc)
+      # warning "NAs introduced by coercion" due to seq and loc possibly having different length, works regardless
+      .default = suppressWarnings(as.integer(loc))
     )
     # -1 because initiator M
     outer(starts, loc_num, `+`) - 1L
@@ -367,6 +389,8 @@ setMethod(
 
       mapper <- msa_mappers[[fam]]
       variants <- stringr::str_split_1(grp, "/")
+      stopifnot(all(variants %in% mapper))
+
       purrr::map2(
         # each element in the mapper corresponds to 1 variant
         mapper[variants],
@@ -437,7 +461,8 @@ setMethod(
     mod_loc <- dplyr::case_when(
       loc == "N-term" ~ 1L,
       loc == "C-term" ~ nchar(seq),
-      .default = as.integer(loc)
+      # warning "NAs introduced by coercion" due to seq and loc possibly having different length, works regardless
+      .default = suppressWarnings(as.integer(loc))
     )
     # funky looking string for later evaluation with glue::glue()
     # {m} will be substituted by the mod and {aa} by the amino acid
