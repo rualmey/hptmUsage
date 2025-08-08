@@ -176,7 +176,19 @@ setMethod(
       rd$histone
     )
 
+    # add precursor column
+    rd$precursor <- .create_proforma(rd$sequence, mod_info$loc, mod_info$mod, rd$charge)
+
     # within-peptide
+    mod_info$loc <- purrr::map2(mod_info$loc, rd$sequence, function(locs, seq) {
+      dplyr::case_when(
+        locs == "N-term" ~ 1L,
+        locs == "C-term" ~ nchar(seq),
+        is.na(locs) ~ NA_integer_,
+        # warning "NAs introduced by coercion" due possible N-term/C-term, works regardless
+        .default = suppressWarnings(as.integer(locs))
+      )
+    })
     rd$mods_pep <- .create_mod_string(mod_info$aa, mod_info$loc, mod_info$mod)
 
     # within-peptide to within-variant
@@ -203,9 +215,6 @@ setMethod(
       rd$mods_ref <- .create_mod_string(mod_info$aa, pos_ref, mod_info$mod, filter = !rd$histone)
     }
 
-    # add precursor column
-    rd$precursor <- .create_proforma(rd$sequence, mod_info$loc, mod_info$mod, rd$charge)
-
     rowData(object) <- rd
 
     object
@@ -213,19 +222,24 @@ setMethod(
 )
 
 .parse_mods <- function(mod_strings, format) {
-  mods_split <- stringr::str_split(mod_strings, stringr::fixed("|"))
   pattern <- switch(
     format,
-    "progenesis" = r"(^\[(?<loc>\d+|N-term|C-term)\] (?<mod>.+) \(.+\)$)",
-    "progenesis_sw" = r"(^\[(?<loc>\d+|N-term|C-term)\] \(.+\) (?<mod>.+)$)"
+    "progenesis" = r"(\[(?<loc>\d+|N-term|C-term)\] (?<mod>.+?) \(.+?\))",
+    "progenesis_sw" = r"(\[(?<loc>\d+|N-term|C-term)\] \(.+?\) (?<mod>.+?)(?:\||$))"
   )
-  mods <- purrr::map(mods_split, \(x) stringr::str_match(x, pattern))
+  mods <- stringr::str_match_all(mod_strings, pattern) |>
+    purrr::map(\(x) list(locs = x[, "loc"], mods = x[, "mod"]))
   mods <- list(
-    locs = purrr::map(mods, \(x) x[, "loc"]),
-    mods = purrr::map(mods, \(x) x[, "mod"])
+    locs = purrr::map(mods, "locs"),
+    mods = purrr::map(mods, "mods")
   ) |>
     # NA values have a name, which should be dropped for consistency
     purrr::map_depth(2, \(x) purrr::set_names(x, nm = NULL))
+
+  # empty mod strings result in a character(0) instead of NA
+  mods$locs[lengths(mods$locs) == 0] <- NA_character_
+  mods$mods[lengths(mods$mods) == 0] <- NA_character_
+
   # for easy renaming / sanity check
   message(
     "Unique modifications found: ",
@@ -239,6 +253,7 @@ setMethod(
   if (is.null(rename_map)) {
     return(mods)
   }
+  stopifnot(is.list(rename_map) && length(rename_map) > 0)
   message(
     "Renaming mods: ",
     paste(rename_map, collapse = "; ")
@@ -298,9 +313,22 @@ setMethod(
 }
 
 .add_unmods <- function(locs, mods, sequences, unmods, is_histone) {
-  pattern <- paste0("[", paste0(unmods, collapse = ""), "]")
-  unmod_sites <- stringr::str_locate_all(sequences, pattern) |>
-    purrr::map(\(x) as.character(x[, "start"]))
+  aa_unmods <- unmods[unmods != "N-term" & unmods != "C-term"]
+  if (length(aa_unmods) > 0) {
+    pattern <- paste0("[", paste0(aa_unmods, collapse = ""), "]")
+    unmod_sites <- stringr::str_locate_all(sequences, pattern) |>
+      purrr::map(\(x) as.character(x[, "start"]))
+  } else {
+    unmod_sites <- replicate(length(sequences), character(), simplify = FALSE)
+  }
+  # N- or C-term will not be found through the pattern match, so add manually
+  if ("N-term" %in% unmods) {
+    unmod_sites <- purrr::map(unmod_sites, \(x) c(x, "N-term"))
+  }
+  if ("C-term" %in% unmods) {
+    unmod_sites <- purrr::map(unmod_sites, \(x) c(x, "C-term"))
+  }
+
   new_info <- purrr::pmap(list(locs, mods, unmod_sites, is_histone), function(l, m, u, h) {
     # do not handle co-extracts (or if no unmods need to be added)
     if (!isTRUE(h) || length(u) == 0) {
@@ -333,6 +361,39 @@ setMethod(
   )
 }
 
+.create_proforma <- function(sequences, locs, mods, charges) {
+  purrr::pmap_chr(list(sequences, locs, mods, charges), function(seq, loc, mod, charge) {
+    if (all(is.na(mod))) {
+      return(paste0(seq, "/", charge))
+    }
+
+    # turn loc into the amino acid index of the sequence
+    mod_loc <- dplyr::case_when(
+      loc == "N-term" ~ 1L,
+      loc == "C-term" ~ nchar(seq),
+      # warning "NAs introduced by coercion" due to seq and loc possibly having different length, works regardless
+      .default = suppressWarnings(as.integer(loc))
+    )
+    # funky looking string for later evaluation with glue::glue()
+    # {m} will be substituted by the mod and {aa} by the amino acid
+    subs_str <- dplyr::case_when(
+      loc == "N-term" ~ "[{m}]-{aa}",
+      loc == "C-term" ~ "{aa}-[{m}]",
+      .default = "{aa}[{m}]"
+    )
+
+    seq_chars <- stringr::str_split_1(seq, "")
+    seq_chars[mod_loc] <- purrr::pmap(list(mod_loc, subs_str, mod), function(ml, ms, m) {
+      # need to define aa for glue() to use, m is already defined inside this pmap call
+      aa <- seq_chars[ml]
+      (\(x) NULL)(aa) # just getting rid of warning that aa is unused...
+      seq_chars <- stringr::str_glue(ms)
+    })
+
+    paste(seq_chars, collapse = "") |> paste0("/", charge)
+  })
+}
+
 .create_mod_string <- function(amino_acids, locs, mods, filter = NULL) {
   mod_string <- purrr::pmap_chr(list(amino_acids, locs, mods), function(aa, loc, mod) {
     if (all(is.na(mod))) {
@@ -353,15 +414,8 @@ setMethod(
     if (all(is.na(loc)) || all(is.na(starts))) {
       return(NA_integer_)
     }
-    # get within-peptide index
-    loc_num <- dplyr::case_when(
-      loc == "N-term" ~ 1L,
-      loc == "C-term" ~ nchar(seq),
-      # warning "NAs introduced by coercion" due to seq and loc possibly having different length, works regardless
-      .default = suppressWarnings(as.integer(loc))
-    )
     # -1 because initiator M
-    outer(starts, loc_num, `+`) - 1L
+    outer(starts, loc, `+`) - 1L
   })
 }
 
@@ -389,7 +443,7 @@ setMethod(
 
       mapper <- msa_mappers[[fam]]
       variants <- stringr::str_split_1(grp, "/")
-      stopifnot(all(variants %in% mapper))
+      stopifnot(all(variants %in% names(mapper)))
 
       purrr::map2(
         # each element in the mapper corresponds to 1 variant
@@ -448,38 +502,5 @@ setMethod(
       # +1 because mapper is 1-indexed, msa loc is 0-based
       paste(mapper[msa_loc + 1], collapse = "/")
     })
-  })
-}
-
-.create_proforma <- function(sequences, locs, mods, charges) {
-  purrr::pmap_chr(list(sequences, locs, mods, charges), function(seq, loc, mod, charge) {
-    if (all(is.na(mod))) {
-      return(paste0(seq, "/", charge))
-    }
-
-    # turn loc into the amino acid index of the sequence
-    mod_loc <- dplyr::case_when(
-      loc == "N-term" ~ 1L,
-      loc == "C-term" ~ nchar(seq),
-      # warning "NAs introduced by coercion" due to seq and loc possibly having different length, works regardless
-      .default = suppressWarnings(as.integer(loc))
-    )
-    # funky looking string for later evaluation with glue::glue()
-    # {m} will be substituted by the mod and {aa} by the amino acid
-    subs_str <- dplyr::case_when(
-      loc == "N-term" ~ "[{m}]-{aa}",
-      loc == "C-term" ~ "{aa}-[{m}]",
-      .default = "{aa}[{m}]"
-    )
-
-    seq_chars <- stringr::str_split_1(seq, "")
-    seq_chars[mod_loc] <- purrr::pmap(list(mod_loc, subs_str, mod), function(ml, ms, m) {
-      # need to define aa for glue() to use, m is already defined inside this pmap call
-      aa <- seq_chars[ml]
-      (\(x) NULL)(aa) # just getting rid of warning that aa is unused...
-      seq_chars <- stringr::str_glue(ms)
-    })
-
-    paste(seq_chars, collapse = "") |> paste0("/", charge)
   })
 }

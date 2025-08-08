@@ -1,110 +1,564 @@
-# Test setup
-mock_msa <- list(
-  unaligned = Biostrings::AAStringSetList(
-    H3 = Biostrings::AAStringSet(c(H31_HUMAN = "MARTKQTARKSTGGKAPRKQ")),
-    H4 = Biostrings::AAStringSet(c(H4_HUMAN = "SGRGKGGKGLGKGGAKRHRK"))
-  ),
-  msa = Biostrings::AAStringSetList(
-    H3 = Biostrings::AAStringSet(c(H31_HUMAN = "M-ARTKQTARKSTGGKAPRKQ", H3C_HUMAN = "")),
-    H4 = Biostrings::AAStringSet(c(H4_HUMAN = "SGRGK-GGKGLGKGGAKRHRK"))
-  ),
-  msa_ref = Biostrings::AAStringSetList(
-    H3 = Biostrings::AAStringSet(c(H3_REF = "M-ARKSTGGKAPRTKQTARKQ")),
-    H4 = Biostrings::AAStringSet(c(H4_REF = "SGRHRGK-GGKGLGKGGAKRK"))
-  )
-)
-#fmt: skip
-mock_se <- SummarizedExperiment::SummarizedExperiment(
-  assays = list(intensity = matrix(runif(49), nrow = 7, dimnames = list(c(as.character(1:7)), LETTERS[1:7]))),
-  rowData = S4Vectors::DataFrame(
-    feature_number = 1:7,
-    sequence = c("KQTARK", "KSTGGK", "KQTARK", "PEPTIDE", "GKGGK", "KQTARK", "YQKSTELLIR"),
-    mods = c("[2] (Q) Ac|[5] (R) Me2", "[1] (K) Propionyl|[6] (K) Me3", "[2] (Q) Me3", NA_character_, "[2] (K) Ac", "[2] (Q) Dimethyl", NA_character_),
-    charge = c(2L, 3L, 2L, 2L, 2L, 3L, 2L),
-    histone = c(TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, TRUE),
-    histone_family = c("H3", "H3", "H3", NA_character_, "H4", "H3", "H3"),
-    histone_group = c("H31_HUMAN", "H31_HUMAN", "H31_HUMAN", NA_character_, "H4_HUMAN", "H31_HUMAN", "H31_HUMAN/H3C_HUMAN"),
-    start_index = I(list(4L, 9L, 4L, NA_integer_, 4L, 4L, c(54L, 53L))),
-    row.names = as.character(1:7)
-  )
-)
-mock_qf <- QFeatures::QFeatures(
-  list(assay1 = mock_se, assay2 = mock_se),
-  colData = S4Vectors::DataFrame(Var1 = rnorm(7), Var2 = LETTERS[1:7], row.names = LETTERS[1:7])
-) |>
-  QFeatures::addAssayLinkOneToOne("assay1", "assay2")
+# helper functions -------------------------------------------------------------
 
-# helper functions
-test_that(".parse_mods works with progenesis format", {
-  mods <- c("[2] Ac (Q)|[5] Me2 (R)", "[1] Propionyl (K)")
-  expect_message(res <- .parse_mods(mods, "progenesis"), "Unique modifications found: Ac; Me2; Propionyl")
-  expect_equal(res$locs, list(c("2", "5"), "1"))
-  expect_equal(res$mods, list(c("Ac", "Me2"), "Propionyl"))
+## .parse_mods -----------------------------------------------------------------
+
+test_that(".parse_mods works with 'progenesis' format", {
+  mod_string <- c("[27] Me3 (K)", "[36] Ac (K)|[37] Me (K)")
+  expected <- list(
+    locs = list("27", c("36", "37")),
+    mods = list("Me3", c("Ac", "Me"))
+  )
+  expect_equal(suppressMessages(.parse_mods(mod_string, "progenesis")), expected)
 })
 
-test_that(".parse_mods works with progenesis_sw format", {
-  mods <- c("[2] (Q) Ac|[5] (R) Me2", "[1] (K) Propionyl")
-  expect_message(res <- .parse_mods(mods, "progenesis_sw"), "Unique modifications found: Ac; Me2; Propionyl")
-  expect_equal(res$locs, list(c("2", "5"), "1"))
-  expect_equal(res$mods, list(c("Ac", "Me2"), "Propionyl"))
+test_that(".parse_mods works with 'progenesis_sw' format", {
+  mod_string <- c("[27] (K) Me3", "[36] (K) Ac|[37] (K) Me")
+  expected <- list(
+    locs = list("27", c("36", "37")),
+    mods = list("Me3", c("Ac", "Me"))
+  )
+  expect_equal(suppressMessages(.parse_mods(mod_string, "progenesis_sw")), expected)
 })
 
-test_that(".rename_mods works", {
-  mods <- list(c("Ac", "Me2"), NA_character_, "Propionyl")
+test_that(".parse_mods handles N-term and C-term locations", {
+  expected <- list(
+    locs = list(c("N-term", "C-term")),
+    mods = list(c("Ac", "Me"))
+  )
+
+  expect_equal(suppressMessages(.parse_mods("[N-term] Ac (N-term)|[C-term] Me (C-term)", "progenesis")), expected)
+  expect_equal(suppressMessages(.parse_mods("[N-term] (N-term) Ac|[C-term] (C-term) Me", "progenesis_sw")), expected)
+})
+
+test_that(".parse_mods handles empty or NA mod strings", {
+  mod_string <- c(NA_character_, "")
+  expected <- list(
+    locs = list(NA_character_, NA_character_),
+    mods = list(NA_character_, NA_character_)
+  )
+  expect_equal(suppressMessages(.parse_mods(mod_string, "progenesis")), expected)
+  expect_equal(suppressMessages(.parse_mods(mod_string, "progenesis_sw")), expected)
+})
+
+test_that(".parse_mods handles malformed or partially malformed strings", {
+  mod_string <- c("invalid string", "[27] Me3 (K)|invalid")
+  expected <- list(
+    locs = list(NA_character_, "27"),
+    mods = list(NA_character_, "Me3")
+  )
+  expect_equal(suppressMessages(.parse_mods(mod_string, "progenesis")), expected)
+})
+
+test_that(".parse_mods handles empty input vector", {
+  mod_string <- character(0)
+  expected <- list(locs = list(), mods = list())
+  expect_equal(suppressMessages(.parse_mods(mod_string, "progenesis")), expected)
+})
+
+test_that(".parse_mods prints correct message for unique mods", {
+  mod_string <- c("[27] Me3 (K)|[36] Ac (K)", "[9] Ac (K)")
+  expect_message(.parse_mods(mod_string, "progenesis"), "Unique modifications found: Ac; Me3")
+})
+
+test_that(".parse_mods correctly handles mods with special regex characters", {
+  mod_string <- "[27] Some+Mod (K)"
+  expected <- list(
+    locs = list("27"),
+    mods = list("Some+Mod")
+  )
+  expect_equal(suppressMessages(.parse_mods(mod_string, "progenesis")), expected)
+})
+
+## .rename_mods ----------------------------------------------------------------
+
+test_that(".rename_mods returns original list when rename_map is NULL", {
+  mods <- list(c("Ac", "Me2"))
+  expect_no_message(.rename_mods(mods, NULL))
+  expect_equal(.rename_mods(mods, NULL), mods)
+})
+
+test_that(".rename_mods renames modifications correctly", {
+  mods <- list(c("Ac", "Me2", "Other"))
   rename_map <- list("Ac" ~ "Acetyl", "Me2" ~ "Dimethyl")
-  expect_message(res <- .rename_mods(mods, rename_map), "Renaming mods: \"Ac\" ~ \"Acetyl\"; \"Me2\" ~ \"Dimethyl\"")
-  expect_equal(res, list(c("Acetyl", "Dimethyl"), NA_character_, "Propionyl"))
-  expect_identical(.rename_mods(mods, NULL), mods)
+
+  expected <- list(c("Acetyl", "Dimethyl", "Other"))
+  expect_message(
+    renamed <- .rename_mods(mods, rename_map),
+    "Renaming mods: \"Ac\" ~ \"Acetyl\"; \"Me2\" ~ \"Dimethyl\""
+  )
+  expect_equal(renamed, expected)
 })
 
-test_that(".aa_from_position works", {
-  locs <- list(c("N-term", "5", "C-term"), NA_character_)
-  seqs <- c("KQTARK", "KQTARK")
-  res <- .aa_from_position(locs, seqs)
-  expect_equal(res, list(c("N-term", "R", "C-term"), NA_character_))
+test_that(".rename_mods handles empty rename_map", {
+  mods <- list(c("Ac", "Me2"))
+  expect_error(.rename_mods(mods, list()))
 })
 
-test_that(".add_unmods works", {
-  locs <- list(c("2"), c("2"), NA_character_, c("2"))
-  mods <- list(c("Ac"), c("Ac"), NA_character_, c("Ac"))
-  seqs <- c("KQTARK", "AKAK", "AKAK", "PEPTIDE")
-  is_histone <- c(TRUE, TRUE, TRUE, FALSE)
-  res <- .add_unmods(locs, mods, seqs, "K", is_histone)
-  expect_equal(res$loc, list(c("1", "2", "6"), c("2", "4"), c("2", "4"), c("2")))
-  expect_equal(res$mod, list(c("Unmod", "Ac", "Unmod"), c("Ac", "Unmod"), c("Unmod", "Unmod"), c("Ac")))
+test_that(".rename_mods works vectorized", {
+  mods <- list(c("Ac"), c("Me2", "Ac"), character(0))
+  rename_map <- list("Ac" ~ "Acetyl", "Me2" ~ "Dimethyl")
+  expected <- list(c("Acetyl"), c("Dimethyl", "Acetyl"), character(0))
+  expect_equal(suppressMessages(.rename_mods(mods, rename_map)), expected)
 })
 
-test_that(".process_modifications works", {
-  locs <- list(c("2"), c("2", "4"), NA_character_, c("2"))
-  mods <- list(c("Ac"), c("Propionyl", "Propionyl"), NA_character_, c("Ac"))
-  seqs <- c("KQTARK", "AKAK", "AKAK", "PEPTIDE")
-  strip_mods <- list(Propionyl = c("K", "N-term"))
-  is_histone <- c(TRUE, TRUE, TRUE, FALSE)
+test_that(".rename_mods preserves NA values", {
+  mods <- list(c("Ac", NA, "Me2"))
+  rename_map <- list("Ac" ~ "Acetyl", "Me2" ~ "Dimethyl")
+  expected <- list(c("Acetyl", NA, "Dimethyl"))
+  expect_equal(suppressMessages(.rename_mods(mods, rename_map)), expected)
+})
+
+test_that(".rename_mods handles an empty list of mods", {
+  mods <- list()
+  rename_map <- list("Ac" ~ "Acetyl")
+  expect_equal(suppressMessages(.rename_mods(mods, rename_map)), list())
+})
+
+## .process_modifications ------------------------------------------------------
+
+test_that(".process_modifications returns original mods when no actions are specified", {
+  locs <- list(c("4", "9"))
+  mods <- list(c("Ac", "Me1"))
+  sequences <- "PEPKTIDEK"
+
+  expected <- list(
+    loc = list(c("4", "9")),
+    mod = list(c("Ac", "Me1")),
+    aa = list(c("K", "K"))
+  )
+  expect_equal(
+    .process_modifications(locs, mods, sequences, NULL, NULL, NULL),
+    expected
+  )
+})
+
+test_that(".process_modifications correctly strips specified modifications", {
+  locs <- list(c("N-term", "4", "7", "8"), c("4"))
+  mods <- list(c("Prop", "Ac", "Prop", "Prop"), c("Prop"))
+  sequences <- c("KGGKGGKSK", "KGGK")
+  strip_mods <- list(Prop = c("K", "N-term"))
+  is_histone <- c(TRUE, TRUE)
+
+  expect_message(
+    result <- .process_modifications(locs, mods, sequences, strip_mods, NULL, is_histone),
+    "Stripping mods: Prop on K, N-term"
+  )
+  expected <- list(
+    loc = list(c("4", "8"), character(0)),
+    mod = list(c("Ac", "Prop"), character(0)),
+    aa = list(c("K", "S"), character(0))
+  )
+  expect_equal(result, expected)
+})
+
+test_that(".process_modifications correctly adds 'Unmod' to histone peptides", {
+  locs <- list(c("4"), NA_character_)
+  mods <- list(c("Ac"), NA_character_)
+  sequences <- c("TGGKARTK", "TGGKARTK")
+  unmods <- "K"
+  is_histone <- c(TRUE, TRUE)
+
+  expect_message(
+    result <- .process_modifications(locs, mods, sequences, NULL, unmods, is_histone),
+    "Adding Unmods to: K"
+  )
+  expected <- list(
+    loc = list(c("4", "8"), c("4", "8")),
+    mod = list(c("Ac", "Unmod"), c("Unmod", "Unmod")),
+    aa = list(c("K", "K"), c("K", "K"))
+  )
+  expect_equal(result, expected)
+})
+
+test_that(".process_modifications does not add 'Unmod' to non-histone peptides", {
+  locs <- list(NA_character_)
+  mods <- list(NA_character_)
+  sequences <- "TGGKARTK"
+  unmods <- "K"
+  is_histone <- FALSE
+
+  expect_message(
+    result <- .process_modifications(locs, mods, sequences, NULL, unmods, is_histone),
+    "Adding Unmods to: K"
+  )
+  expected <- list(
+    loc = list(NA_character_),
+    mod = list(NA_character_),
+    aa = list(NA_character_)
+  )
+  expect_equal(result, expected)
+})
+
+test_that(".process_modifications correctly adds 'Unmod' to N-term and C-term", {
+  locs <- list(NA_character_)
+  mods <- list(NA_character_)
+  sequences <- "PEPTIDE"
+  unmods <- c("N-term", "C-term")
+  is_histone <- TRUE
+
+  expect_message(
+    result <- .process_modifications(locs, mods, sequences, NULL, unmods, is_histone),
+    "Adding Unmods to: N-term, C-term"
+  )
+  expected <- list(
+    loc = list(c("N-term", "C-term")),
+    mod = list(c("Unmod", "Unmod")),
+    aa = list(c("N-term", "C-term"))
+  )
+  expect_equal(result, expected)
+})
+
+test_that(".process_modifications strips mods before adding 'Unmod'", {
+  locs <- list(c("4"))
+  mods <- list(c("Prop"))
+  sequences <- "TGGKARTK"
+  strip_mods <- list(Prop = "K")
+  unmods <- "K"
+  is_histone <- TRUE
+
   expect_message(
     expect_message(
-      res <- .process_modifications(locs, mods, seqs, strip_mods, "K", is_histone),
-      "Stripping mods: Propionyl on K, N-term"
+      result <- .process_modifications(locs, mods, sequences, strip_mods, unmods, is_histone),
+      "Stripping mods: Prop on K"
     ),
     "Adding Unmods to: K"
   )
-  expect_equal(res$loc, list(c("1", "2", "6"), c("2", "4"), c("2", "4"), c("2")))
-  expect_equal(res$mod, list(c("Unmod", "Ac", "Unmod"), c("Unmod", "Unmod"), c("Unmod", "Unmod"), c("Ac")))
-  expect_equal(res$aa, list(c("K", "Q", "K"), c("K", "K"), c("K", "K"), c("E")))
+  expected <- list(
+    loc = list(c("4", "8")),
+    mod = list(c("Unmod", "Unmod")),
+    aa = list(c("K", "K"))
+  )
+  expect_equal(result, expected)
 })
 
-test_that(".create_mod_string works", {
-  aa <- list(c("K", "T", "R"), NA_character_, c("K", "T", "R"))
-  loc <- list(c("4", "5", "8"), NA_character_, c("4", "5", "8"))
-  mod <- list(c("Unmod", "Ac", "Me2"), NA_character_, c("Unmod", "Ac", "Me2"))
-  filter <- c(FALSE, FALSE, TRUE)
-  expect_equal(.create_mod_string(aa, loc, mod, filter), c("K|4|Unmod;T|5|Ac;R|8|Me2", NA_character_, NA_character_))
+test_that(".process_modifications handles empty inputs", {
+  result <- .process_modifications(list(), list(), character(), NULL, NULL, logical())
+  expected <- list(loc = list(), mod = list(), aa = list())
+  expect_equal(result, expected)
 })
 
-# .map_pep_to_var --------------------------------------------------------------
+## .aa_from_position -----------------------------------------------------------
+
+test_that(".aa_from_position works with basic numeric locations", {
+  locs <- list("3", "1")
+  sequences <- list("ABCDE", "FGHIJ")
+  expected <- list("C", "F")
+  expect_equal(.aa_from_position(locs, sequences), expected)
+})
+
+test_that(".aa_from_position handles N-term and C-term", {
+  locs <- list("N-term", "C-term")
+  sequences <- list("ABCDE", "FGHIJ")
+  expected <- list("N-term", "C-term")
+  expect_equal(.aa_from_position(locs, sequences), expected)
+})
+
+test_that(".aa_from_position handles multiple locations per sequence", {
+  locs <- list(c("1", "5", "7"))
+  sequences <- list("PEPTIDE")
+  expected <- list(c("P", "I", "E"))
+  expect_equal(.aa_from_position(locs, sequences), expected)
+})
+
+test_that(".aa_from_position handles mixed location types", {
+  locs <- list(c("N-term", "4", "C-term"))
+  sequences <- list("SEQUENCE")
+  expected <- list(c("N-term", "U", "C-term"))
+  expect_equal(.aa_from_position(locs, sequences), expected)
+})
+
+test_that(".aa_from_position handles NA locations correctly", {
+  locs <- list(NA_character_)
+  sequences <- list("ANYSEQ")
+  expected <- list(NA_character_)
+  expect_equal(.aa_from_position(locs, sequences), expected)
+})
+
+test_that(".aa_from_position handles empty inputs", {
+  expect_equal(.aa_from_position(list(), list()), list())
+})
+
+test_that(".aa_from_position handles empty sequence string", {
+  locs <- list("1")
+  sequences <- list("")
+  expected <- list("")
+  expect_equal(.aa_from_position(locs, sequences), expected)
+})
+
+## .add_unmods -----------------------------------------------------------------
+
+test_that(".add_unmods adds Unmod to a single unmodified site", {
+  res <- .add_unmods(
+    locs = list(NA_character_),
+    mods = list(NA_character_),
+    sequences = "PEPTIDEK",
+    unmods = "K",
+    is_histone = TRUE
+  )
+  expect_equal(res$loc, list("8"))
+  expect_equal(res$mod, list("Unmod"))
+})
+
+test_that(".add_unmods does not add Unmod to an already modified site", {
+  res <- .add_unmods(
+    locs = list("8"),
+    mods = list("Ac"),
+    sequences = "PEPTIDEK",
+    unmods = "K",
+    is_histone = TRUE
+  )
+  expect_equal(res$loc, list("8"))
+  expect_equal(res$mod, list("Ac"))
+})
+
+test_that(".add_unmods adds Unmod to some sites but not modified sites", {
+  res <- .add_unmods(
+    locs = list("1"),
+    mods = list("Ac"),
+    sequences = "KGGK",
+    unmods = "K",
+    is_histone = TRUE
+  )
+  expect_equal(res$loc, list(c("1", "4")))
+  expect_equal(res$mod, list(c("Ac", "Unmod")))
+})
+
+test_that(".add_unmods ignores non-histones (co-extracts)", {
+  res <- .add_unmods(
+    locs = list("1", NA_character_),
+    mods = list("Ac", NA_character_),
+    sequences = "KEPTIDEK",
+    unmods = "K",
+    is_histone = FALSE
+  )
+  expect_equal(res$loc, list("1", NA_character_))
+  expect_equal(res$mod, list("Ac", NA_character_))
+})
+
+test_that(".add_unmods handles multiple sequences and mixed conditions", {
+  res <- .add_unmods(
+    locs = list("1", NA_character_, "8"),
+    mods = list("Ac", NA_character_, "Me3"),
+    sequences = c("KGGK", "SOMEPEPTIDE", "PEPTIDEK"),
+    unmods = "K",
+    is_histone = c(TRUE, FALSE, TRUE)
+  )
+  expect_equal(res$loc, list(c("1", "4"), NA_character_, "8"))
+  expect_equal(res$mod, list(c("Ac", "Unmod"), NA_character_, "Me3"))
+})
+
+test_that(".add_unmods handles multiple unmod types", {
+  res <- .add_unmods(
+    locs = list(NA_character_),
+    mods = list(NA_character_),
+    sequences = "KGGRA",
+    unmods = c("K", "R"),
+    is_histone = TRUE
+  )
+  expect_equal(res$loc, list(c("1", "4")))
+  expect_equal(res$mod, list(c("Unmod", "Unmod")))
+})
+
+test_that(".add_unmods handles terminal unmods", {
+  res <- .add_unmods(
+    locs = list(NA_character_, "N-term"),
+    mods = list(NA_character_, "Ac"),
+    sequences = c("KGGRA", "PEPTIDEK"),
+    unmods = c("N-term", "K", "C-term"),
+    is_histone = TRUE
+  )
+  expect_equal(res$loc, list(c("N-term", "1", "C-term"), c("N-term", "8", "C-term")))
+  expect_equal(res$mod, list(c("Unmod", "Unmod", "Unmod"), c("Ac", "Unmod", "Unmod")))
+})
+
+test_that(".add_unmods correctly sorts with N-term and C-term mods", {
+  res <- .add_unmods(
+    locs = list(c("10", "N-term")),
+    mods = list(c("Me3", "Ac")),
+    sequences = "KPEPTIDERK",
+    unmods = "K",
+    is_histone = TRUE
+  )
+  expect_equal(res$loc, list(c("N-term", "1", "10")))
+  expect_equal(res$mod, list(c("Ac", "Unmod", "Me3")))
+})
+
+test_that(".add_unmods handles empty loc/mod inputs", {
+  res <- .add_unmods(
+    locs = list(character(0)),
+    mods = list(character(0)),
+    sequences = "AK",
+    unmods = "K",
+    is_histone = TRUE
+  )
+  expect_equal(res$loc, list("2"))
+  expect_equal(res$mod, list("Unmod"))
+})
+
+test_that(".add_unmods handles sequences with no potential unmod sites", {
+  res <- .add_unmods(
+    locs = list("1"),
+    mods = list("Ac"),
+    sequences = "PEPTIDE",
+    unmods = "K",
+    is_histone = TRUE
+  )
+  expect_equal(res$loc, list("1"))
+  expect_equal(res$mod, list("Ac"))
+})
+
+test_that(".add_unmods handles case with no unmods to add", {
+  res <- .add_unmods(
+    locs = list(c("1", "4")),
+    mods = list(c("Ac", "Me3")),
+    sequences = "KGGK",
+    unmods = "K",
+    is_histone = TRUE
+  )
+  expect_equal(res$loc, list(c("1", "4")))
+  expect_equal(res$mod, list(c("Ac", "Me3")))
+})
+
+## .create_proforma ------------------------------------------------------------
+
+test_that(".create_proforma handles single internal modifications correctly", {
+  sequences <- "PEPTIDEK"
+  locs <- "4"
+  mods <- "Acetyl"
+  charges <- 2L
+  expected <- "PEPT[Acetyl]IDEK/2"
+  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
+})
+
+test_that(".create_proforma handles multiple internal modifications correctly", {
+  sequences <- "PEPTIDEK"
+  locs <- c("4", "8")
+  mods <- c("Acetyl", "Me3")
+  charges <- 3L
+  expected <- "PEPT[Acetyl]IDEK[Me3]/3"
+  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
+})
+
+test_that(".create_proforma handles N-terminal modifications correctly", {
+  sequences <- "PEPTIDEK"
+  locs <- "N-term"
+  mods <- "Propionyl"
+  charges <- 2L
+  expected <- "[Propionyl]-PEPTIDEK/2"
+  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
+})
+
+test_that(".create_proforma handles C-terminal modifications correctly", {
+  sequences <- "PEPTIDEK"
+  locs <- "C-term"
+  mods <- "Amidation"
+  charges <- 1L
+  expected <- "PEPTIDEK-[Amidation]/1"
+  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
+})
+
+test_that(".create_proforma handles mixed (N-term, internal, C-term) modifications", {
+  sequences <- "PEPTIDEK"
+  locs <- c("N-term", "4", "C-term")
+  mods <- c("Ac", "Me2", "Amide")
+  charges <- 4L
+  expected <- "[Ac]-PEPT[Me2]IDEK-[Amide]/4"
+  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
+})
+
+test_that(".create_proforma handles cases with no modifications", {
+  sequences <- "PEPTIDEK"
+  locs <- NA
+  mods <- NA
+  charges <- 2L
+  expected <- "PEPTIDEK/2"
+  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
+})
+
+test_that(".create_proforma works with vectorized inputs", {
+  sequences <- c("SEQONE", "SEQTWO")
+  locs <- list(c("2", "C-term"), NA_character_)
+  mods <- list(c("ModA", "ModB"), NA_character_)
+  charges <- c(2L, 3L)
+  expected <- c("SE[ModA]QONE-[ModB]/2", "SEQTWO/3")
+  expect_equal(.create_proforma(sequences, locs, mods, charges), expected)
+})
+
+test_that(".create_proforma handles empty inputs", {
+  expect_equal(.create_proforma(character(0), list(), list(), integer(0)), character(0))
+})
+
+test_that(".create_proforma handles modification names with special characters", {
+  sequences <- "PEPTIDE"
+  locs <- list("3")
+  mods <- list("weird-mod(1) ^*!")
+  charges <- 2L
+  expected <- "PEP[weird-mod(1) ^*!]TIDE/2"
+  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
+})
+
+## .create_mod_string ----------------------------------------------------------
+
+test_that(".create_mod_string handles a single modification", {
+  aa <- "K"
+  locs <- 27L
+  mods <- "Me3"
+  expect_equal(.create_mod_string(aa, locs, mods), "K|27|Me3")
+})
+
+test_that(".create_mod_string handles multiple modifications in one entry", {
+  aa <- list(c("K", "K"))
+  locs <- list(c(27L, 36L))
+  mods <- list(c("Me3", "Ac"))
+  expect_equal(.create_mod_string(aa, locs, mods), "K|27|Me3;K|36|Ac")
+})
+
+test_that(".create_mod_string handles multiple list entries (vectorizes)", {
+  aa <- list(c("K", "K"), "R")
+  locs <- list(c(27L, 36L), 17L)
+  mods <- list(c("Me3", "Ac"), "Me2")
+  expect_equal(.create_mod_string(aa, locs, mods), c("K|27|Me3;K|36|Ac", "R|17|Me2"))
+})
+
+test_that(".create_mod_string returns NA if there are no PTMs", {
+  aa <- NA_character_
+  locs <- NA_integer_
+  mods <- NA_character_
+  expect_equal(.create_mod_string(aa, locs, mods), NA_character_)
+})
+
+test_that(".create_mod_string handles special terminal locations", {
+  aa <- list(c("N-term", "C-term"))
+  locs <- list(c(1L, 8L))
+  mods <- list(c("Propionyl", "Amidation"))
+  expect_equal(.create_mod_string(aa, locs, mods), "N-term|1|Propionyl;C-term|8|Amidation")
+})
+
+test_that(".create_mod_string handles empty inputs", {
+  expect_equal(.create_mod_string(list(), list(), list()), character(0))
+})
+
+test_that(".create_mod_string applies filter correctly", {
+  aa <- list("K", "K")
+  locs <- list(27L, 36L)
+  mods <- list("Me3", "Ac")
+  filter <- c(FALSE, TRUE)
+  expect_equal(.create_mod_string(aa, locs, mods, filter = filter), c("K|27|Me3", NA_character_))
+})
+
+test_that(".create_mod_string combines filtering and NA mods", {
+  aa <- list("K", "K", "R")
+  locs <- list(27L, 36L, 17L)
+  mods <- list("Me3", NA, "Me2")
+  filter <- c(TRUE, FALSE, TRUE)
+  expect_equal(.create_mod_string(aa, locs, mods, filter = filter), c(NA_character_, NA_character_, NA_character_))
+})
+
+## .map_pep_to_var -------------------------------------------------------------
 # note the -1 offset due to initiator M getting index 0
 
 test_that(".map_pep_to_var correctly maps a single numeric mod to one variant", {
-  locs <- "5"
+  locs <- 5
   starts <- 27L
   seqs <- "PEPTIDEK"
 
@@ -113,7 +567,7 @@ test_that(".map_pep_to_var correctly maps a single numeric mod to one variant", 
 })
 
 test_that(".map_pep_to_var handles multiple numeric mods on one variant", {
-  locs <- list(c("2", "8"))
+  locs <- list(c(2, 8))
   starts <- 10L
   seqs <- "PEPTIDEKGG"
 
@@ -122,7 +576,7 @@ test_that(".map_pep_to_var handles multiple numeric mods on one variant", {
 })
 
 test_that(".map_pep_to_var handles mapping to multiple variants", {
-  locs <- "3"
+  locs <- 3
   starts <- list(c(27L, 10L))
   seqs <- "PEPTIDEK"
 
@@ -131,7 +585,7 @@ test_that(".map_pep_to_var handles mapping to multiple variants", {
 })
 
 test_that(".map_pep_to_var handles multiple mods on multiple variants", {
-  locs <- list(c("3", "6"))
+  locs <- list(c(3, 6))
   starts <- list(c(27L, 10L))
   seqs <- "PEPTIDEK"
 
@@ -139,35 +593,8 @@ test_that(".map_pep_to_var handles multiple mods on multiple variants", {
   expect_equal(.map_pep_to_var(locs, starts, seqs), expected)
 })
 
-test_that(".map_pep_to_var correctly maps an N-terminal mod", {
-  locs <- "N-term"
-  starts <- list(c(27L, 10L))
-  seqs <- "PEPTIDEK"
-
-  expected <- list(matrix(c(27L, 10L), ncol = 1))
-  expect_equal(.map_pep_to_var(locs, starts, seqs), expected)
-})
-
-test_that(".map_pep_to_var correctly maps a C-terminal mod", {
-  locs <- "C-term"
-  starts <- list(c(27L, 10L))
-  seqs <- "PEPTIDEK"
-
-  expected <- list(matrix(c(34L, 17L), ncol = 1))
-  expect_equal(.map_pep_to_var(locs, starts, seqs), expected)
-})
-
-test_that(".map_pep_to_var handles mixed (N-term, numeric, C-term) mods", {
-  locs <- list(c("N-term", "5", "C-term"))
-  starts <- list(c(27L, 10L))
-  seqs <- "PEPTIDEK"
-
-  expected <- list(matrix(c(27L, 10L, 31L, 14L, 34L, 17L), nrow = 2))
-  expect_equal(.map_pep_to_var(locs, starts, seqs), expected)
-})
-
 test_that(".map_pep_to_var returns NA when mods are NA", {
-  locs <- NA_character_
+  locs <- NA_integer_
   starts <- 27L
   seqs <- "PEPTIDEK"
 
@@ -175,7 +602,7 @@ test_that(".map_pep_to_var returns NA when mods are NA", {
 })
 
 test_that(".map_pep_to_var returns NA when start indices are NA (i.e., not a histone)", {
-  locs <- "5"
+  locs <- 5
   starts <- NA_integer_
   seqs <- "PEPTIDEK"
 
@@ -183,7 +610,7 @@ test_that(".map_pep_to_var returns NA when start indices are NA (i.e., not a his
 })
 
 test_that(".map_pep_to_var works vectorized", {
-  locs <- list("5", "5", NA_character_, c("N-term", "3"))
+  locs <- list(5, 5, NA_integer_, c(1, 3))
   starts <- list(27L, NA_integer_, 27L, c(10L, 15L))
   seqs <- list("PEPTIDEK", "AAAA", "BBBB", "GGG")
 
@@ -201,7 +628,7 @@ test_that(".map_pep_to_var works with empty inputs", {
 })
 
 test_that(".map_pep_to_var handles mod at position 1 equivalent to protein N-term", {
-  locs <- "1"
+  locs <- 1
   starts <- 0L
   seqs <- "PEPTIDEK"
 
@@ -211,7 +638,7 @@ test_that(".map_pep_to_var handles mod at position 1 equivalent to protein N-ter
   )
 })
 
-# .mapper_from_msa -------------------------------------------------------------
+## .mapper_from_msa ------------------------------------------------------------
 
 test_that(".mapper_from_msa works with a typical MSA", {
   msa <- Biostrings::AAStringSet(c(H1 = "A-C-E", H2 = "-B-DF"))
@@ -255,7 +682,7 @@ test_that(".mapper_from_msa handles an empty AAStringSet", {
   expect_equal(.mapper_from_msa(msa), list())
 })
 
-# .map_var_to_msa --------------------------------------------------------------
+## .map_var_to_msa -------------------------------------------------------------
 
 test_that(".map_var_to_msa single variant, single mod mapping works", {
   rd <- S4Vectors::DataFrame(
@@ -404,7 +831,7 @@ test_that(".map_var_to_msa error on missing family or variant in mapper", {
   expect_error(.map_var_to_msa(locs, rd_bad_var, msa_mappers))
 })
 
-# .fill_msa_gaps ---------------------------------------------------------------
+## .fill_msa_gaps --------------------------------------------------------------
 
 test_that(".fill_msa_gaps creates correct reference map", {
   ref_mapper <- 0:4
@@ -454,7 +881,7 @@ test_that(".fill_msa_gaps errors on empty ref_mapper", {
   expect_error(.fill_msa_gaps(ref_mapper, msa_ref))
 })
 
-# .map_msa_to_ref --------------------------------------------------------------
+## .map_msa_to_ref -------------------------------------------------------------
 
 test_that(".map_msa_to_ref works as expected", {
   mock_ref_mappers <- list(
@@ -484,85 +911,45 @@ test_that(".map_msa_to_ref handles empty lists", {
   expect_equal(.map_msa_to_ref(list(), character(), list()), list())
 })
 
-# .create_proforma -------------------------------------------------------------
+# S4 Methods -------------------------------------------------------------------
 
-test_that(".create_proforma handles single internal modifications correctly", {
-  sequences <- "PEPTIDEK"
-  locs <- "4"
-  mods <- "Acetyl"
-  charges <- 2L
-  expected <- "PEPT[Acetyl]IDEK/2"
-  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
-})
+## processMods.SummarizedExperiment --------------------------------------------
 
-test_that(".create_proforma handles multiple internal modifications correctly", {
-  sequences <- "PEPTIDEK"
-  locs <- c("4", "8")
-  mods <- c("Acetyl", "Me3")
-  charges <- 3L
-  expected <- "PEPT[Acetyl]IDEK[Me3]/3"
-  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
-})
-
-test_that(".create_proforma handles N-terminal modifications correctly", {
-  sequences <- "PEPTIDEK"
-  locs <- "N-term"
-  mods <- "Propionyl"
-  charges <- 2L
-  expected <- "[Propionyl]-PEPTIDEK/2"
-  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
-})
-
-test_that(".create_proforma handles C-terminal modifications correctly", {
-  sequences <- "PEPTIDEK"
-  locs <- "C-term"
-  mods <- "Amidation"
-  charges <- 1L
-  expected <- "PEPTIDEK-[Amidation]/1"
-  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
-})
-
-test_that(".create_proforma handles mixed (N-term, internal, C-term) modifications", {
-  sequences <- "PEPTIDEK"
-  locs <- c("N-term", "4", "C-term")
-  mods <- c("Ac", "Me2", "Amide")
-  charges <- 4L
-  expected <- "[Ac]-PEPT[Me2]IDEK-[Amide]/4"
-  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
-})
-
-test_that(".create_proforma handles cases with no modifications", {
-  sequences <- "PEPTIDEK"
-  locs <- NA
-  mods <- NA
-  charges <- 2L
-  expected <- "PEPTIDEK/2"
-  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
-})
-
-test_that(".create_proforma works with vectorized inputs", {
-  sequences <- c("SEQONE", "SEQTWO")
-  locs <- list(c("2", "C-term"), NA_character_)
-  mods <- list(c("ModA", "ModB"), NA_character_)
-  charges <- c(2L, 3L)
-  expected <- c("SE[ModA]QONE-[ModB]/2", "SEQTWO/3")
-  expect_equal(.create_proforma(sequences, locs, mods, charges), expected)
-})
-
-test_that(".create_proforma handles empty inputs", {
-  expect_equal(.create_proforma(character(0), list(), list(), integer(0)), character(0))
-})
-
-test_that(".create_proforma handles modification names with special characters", {
-  sequences <- "PEPTIDE"
-  locs <- list("3")
-  mods <- list("weird-mod(1) ^*!")
-  charges <- 2L
-  expected <- "PEP[weird-mod(1) ^*!]TIDE/2"
-  expect_equal(.create_proforma(sequences, list(locs), list(mods), charges), expected)
-})
-
-# ------------------------------------------------------------------------------
+# Test setup
+mock_msa <- list(
+  unaligned = Biostrings::AAStringSetList(
+    H3 = Biostrings::AAStringSet(c(H31_HUMAN = "MARTKQTARKSTGGKAPRKQ")),
+    H4 = Biostrings::AAStringSet(c(H4_HUMAN = "SGRGKGGKGLGKGGAKRHRK"))
+  ),
+  msa = Biostrings::AAStringSetList(
+    H3 = Biostrings::AAStringSet(c(H31_HUMAN = "M-ARTKQTARKSTGGKAPRKQ", H3C_HUMAN = "")),
+    H4 = Biostrings::AAStringSet(c(H4_HUMAN = "SGRGK-GGKGLGKGGAKRHRK"))
+  ),
+  msa_ref = Biostrings::AAStringSetList(
+    H3 = Biostrings::AAStringSet(c(H3_REF = "M-ARKSTGGKAPRTKQTARKQ")),
+    H4 = Biostrings::AAStringSet(c(H4_REF = "SGRHRGK-GGKGLGKGGAKRK"))
+  )
+)
+#fmt: skip
+mock_se <- SummarizedExperiment::SummarizedExperiment(
+  assays = list(intensity = matrix(runif(49), nrow = 7, dimnames = list(c(as.character(1:7)), LETTERS[1:7]))),
+  rowData = S4Vectors::DataFrame(
+    feature_number = 1:7,
+    sequence = c("KQTARK", "KSTGGK", "KQTARK", "PEPTIDE", "GKGGK", "KQTARK", "YQKSTELLIR"),
+    mods = c("[2] (Q) Ac|[5] (R) Me2", "[1] (K) Propionyl|[6] (K) Me3", "[2] (Q) Me3", NA_character_, "[2] (K) Ac", "[2] (Q) Dimethyl", NA_character_),
+    charge = c(2L, 3L, 2L, 2L, 2L, 3L, 2L),
+    histone = c(TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, TRUE),
+    histone_family = c("H3", "H3", "H3", NA_character_, "H4", "H3", "H3"),
+    histone_group = c("H31_HUMAN", "H31_HUMAN", "H31_HUMAN", NA_character_, "H4_HUMAN", "H31_HUMAN", "H31_HUMAN/H3C_HUMAN"),
+    start_index = I(list(4L, 9L, 4L, NA_integer_, 4L, 4L, c(54L, 53L))),
+    row.names = as.character(1:7)
+  )
+)
+mock_qf <- QFeatures::QFeatures(
+  list(assay1 = mock_se, assay2 = mock_se),
+  colData = S4Vectors::DataFrame(Var1 = rnorm(7), Var2 = LETTERS[1:7], row.names = LETTERS[1:7])
+) |>
+  QFeatures::addAssayLinkOneToOne("assay1", "assay2")
 
 test_that("processMods.SummarizedExperiment default works", {
   res_se <- processMods(mock_se, mock_msa, mod_format = "progenesis_sw")
@@ -617,6 +1004,8 @@ test_that("processMods handles co-extracts and missing mods", {
   expect_equal(rd$precursor[4], "PEPTIDE/2")
   expect_equal(rd$mods_pep[7], "K|1|Unmod;K|6|Unmod")
 })
+
+## processMods.QFeatures -------------------------------------------------------
 
 test_that("processMods.QFeatures works", {
   res_qf <- processMods(mock_qf, mock_msa, "peptides", mod_format = "progenesis_sw")
