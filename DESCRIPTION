@@ -68,4 +68,5 @@ Collate:
     'processMods.R'
     'readProgenesis.R'
     'replaceColData.R'
+    'tagContaminants.R'
     'zzz.R'
