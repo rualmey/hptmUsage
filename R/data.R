@@ -71,9 +71,9 @@ hptmUsageData <- function(file = NULL) {
 #'   Design to Extract More Information from MS-Based Histone Studies. Molecular
 #'   Omics 2021, 17 (6), 929–938. <https://doi.org/10.1039/D1MO00201E>.
 #' @examples
-#' benchmark |>
+#' hptm_benchmark |>
 #'   show()
-"benchmark"
+"hptm_benchmark"
 
 #' Aligned Human Histones
 #'
