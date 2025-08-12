@@ -113,7 +113,6 @@ setMethod(
   }
 )
 
-
 #' @rdname processMods
 #' @examples
 #' \dontrun{
