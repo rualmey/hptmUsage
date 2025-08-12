@@ -915,118 +915,299 @@ test_that(".map_msa_to_ref handles empty lists", {
 
 ## processMods.SummarizedExperiment --------------------------------------------
 
-# Test setup
-mock_msa <- list(
-  unaligned = Biostrings::AAStringSetList(
-    H3 = Biostrings::AAStringSet(c(H31_HUMAN = "MARTKQTARKSTGGKAPRKQ")),
-    H4 = Biostrings::AAStringSet(c(H4_HUMAN = "SGRGKGGKGLGKGGAKRHRK"))
-  ),
-  msa = Biostrings::AAStringSetList(
-    H3 = Biostrings::AAStringSet(c(H31_HUMAN = "M-ARTKQTARKSTGGKAPRKQ", H3C_HUMAN = "")),
-    H4 = Biostrings::AAStringSet(c(H4_HUMAN = "SGRGK-GGKGLGKGGAKRHRK"))
-  ),
-  msa_ref = Biostrings::AAStringSetList(
-    H3 = Biostrings::AAStringSet(c(H3_REF = "M-ARKSTGGKAPRTKQTARKQ")),
-    H4 = Biostrings::AAStringSet(c(H4_REF = "SGRHRGK-GGKGLGKGGAKRK"))
+test_that("processMods works with default parameters", {
+  mock_se <- new_mock_se()
+  mock_msa <- new_mock_msa()
+
+  expect_message(
+    expect_message(
+      expect_message(
+        expect_message(
+          expect_message(
+            res <- processMods(mock_se, mock_msa),
+            "Unique modifications found: Ac; Ph; Propionyl"
+          ),
+          "Stripping mods: Propionyl on K, N-term"
+        ),
+        "Adding Unmods to: K"
+      ),
+      "Modified sequences with ambiguous location post-alignment:\nFeat\tSequence"
+    ),
+    "4\tYQKSTELLIR"
   )
-)
-#fmt: skip
-mock_se <- SummarizedExperiment::SummarizedExperiment(
-  assays = list(intensity = matrix(runif(49), nrow = 7, dimnames = list(c(as.character(1:7)), LETTERS[1:7]))),
-  rowData = S4Vectors::DataFrame(
-    feature_number = 1:7,
-    sequence = c("KQTARK", "KSTGGK", "KQTARK", "PEPTIDE", "GKGGK", "KQTARK", "YQKSTELLIR"),
-    mods = c("[2] (Q) Ac|[5] (R) Me2", "[1] (K) Propionyl|[6] (K) Me3", "[2] (Q) Me3", NA_character_, "[2] (K) Ac", "[2] (Q) Dimethyl", NA_character_),
-    charge = c(2L, 3L, 2L, 2L, 2L, 3L, 2L),
-    histone = c(TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, TRUE),
-    histone_family = c("H3", "H3", "H3", NA_character_, "H4", "H3", "H3"),
-    histone_group = c("H31_HUMAN", "H31_HUMAN", "H31_HUMAN", NA_character_, "H4_HUMAN", "H31_HUMAN", "H31_HUMAN/H3C_HUMAN"),
-    start_index = I(list(4L, 9L, 4L, NA_integer_, 4L, 4L, c(54L, 53L))),
-    row.names = as.character(1:7)
+  # unchanged
+  expect_s4_class(res, "SummarizedExperiment")
+  expect_identical(colData(mock_se), colData(res))
+  expect_identical(assays(mock_se), assays(res))
+  # 5 new columns
+  rd <- rowData(res)
+  expect_length(
+    setdiff(
+      names(rd),
+      c(names(rowData(mock_se)), "mods_pep", "mods_var", "mods_msa", "mods_ref", "precursor")
+    ),
+    0
   )
-)
-mock_qf <- QFeatures::QFeatures(
-  list(assay1 = mock_se, assay2 = mock_se),
-  colData = S4Vectors::DataFrame(Var1 = rnorm(7), Var2 = LETTERS[1:7], row.names = LETTERS[1:7])
-) |>
-  QFeatures::addAssayLinkOneToOne("assay1", "assay2")
-
-test_that("processMods.SummarizedExperiment default works", {
-  res_se <- processMods(mock_se, mock_msa, mod_format = "progenesis_sw")
-  rd <- rowData(res_se)
-  expect_true(all(c("mods_pep", "mods_var", "mods_msa", "mods_ref", "precursor") %in% names(rd)))
-  expect_equal(rd$mods_pep[1], "Q|2|Ac;R|5|Me2")
-  expect_equal(rd$mods_pep[2], "K|6|Me3;K|9|Unmod")
-  expect_equal(rd$mods_var[1], "Q|5|Ac;R|8|Me2")
-  expect_equal(rd$mods_msa[2], "K|14|Me3;K|9|Unmod")
-  expect_equal(rd$mods_ref[1], "Q|5|Ac;R|8.1|Me2")
-  expect_equal(rd$precursor[1], "K[Ac]QTA[Me2]RK/2")
-})
-
-test_that("processMods with unmods=NULL works", {
-  res_se <- processMods(mock_se, mock_msa, mod_format = "progenesis_sw", unmods = NULL)
-  rd <- rowData(res_se)
-  expect_equal(rd$mods_pep[2], "K|6|Me3")
-})
-
-test_that("processMods with strip_mods=NULL works", {
-  res_se <- processMods(mock_se, mock_msa, mod_format = "progenesis_sw", strip_mods = NULL)
-  rd <- rowData(res_se)
-  expect_equal(rd$mods_pep[2], "K|1|Propionyl;K|6|Me3;K|9|Unmod")
-})
-
-test_that("processMods with rename_mods works", {
-  res_se <- processMods(
-    mock_se,
-    mock_msa,
-    mod_format = "progenesis_sw",
-    rename_mods = list("Ac" ~ "Acetyl", "Dimethyl" ~ "Me2")
+  # of which the original columns are unchanged
+  expect_identical(
+    rd[c("feature_number", "sequence", "mods", "charge", "histone", "histone_family", "histone_group", "start_index")],
+    rowData(mock_se)
   )
-  rd <- rowData(res_se)
-  expect_equal(rd$mods_pep[1], "Q|2|Acetyl;R|5|Me2")
-  expect_equal(rd$mods_pep[6], "Q|2|Me2;K|1|Unmod;K|6|Unmod")
+  # new columns
+  expect_equal(
+    rd$mods_pep,
+    c(
+      "K|2|Ac",
+      "K|1|Ac;K|10|Unmod;K|11|Unmod",
+      "K|3|Unmod;S|4|Ph",
+      "K|3|Unmod;S|4|Ph",
+      "K|2|Unmod;K|5|Unmod;K|9|Unmod;K|13|Unmod",
+      "K|8|Ac"
+    )
+  )
+  expect_equal(
+    rd$mods_var,
+    c(
+      "K|4|Ac",
+      "K|27|Ac;K|36|Unmod;K|37|Unmod",
+      "K|55/56|Unmod;S|56/57|Ph",
+      "K|55/56|Unmod;S|56/57|Ph",
+      "K|5|Unmod;K|8|Unmod;K|12|Unmod;K|16|Unmod",
+      NA
+    )
+  )
+  expect_equal(
+    rd$mods_msa,
+    c(
+      "K|7|Ac",
+      "K|34|Ac;K|43|Unmod;K|44|Unmod",
+      "K|63|Unmod;S|64|Ph",
+      "K|61/63|Unmod;S|62/64|Ph",
+      "K|5|Unmod;K|8|Unmod;K|12|Unmod;K|16|Unmod",
+      NA
+    )
+  )
+  expect_equal(
+    rd$mods_ref,
+    c(
+      "K|4|Ac",
+      "K|27|Ac;K|36|Unmod;K|37|Unmod",
+      "K|56|Unmod;S|57|Ph",
+      "K|54/56|Unmod;S|55/57|Ph",
+      "K|5|Unmod;K|8|Unmod;K|12|Unmod;K|16|Unmod",
+      NA
+    )
+  )
+  expect_equal(
+    rd$precursor,
+    c(
+      "TK[Ac]QTAR/2",
+      "K[Ac]SAPATGGVK[Unmod]K[Unmod]PHR/3",
+      "YQK[Unmod]S[Ph]TELLIR/2",
+      "YQK[Unmod]S[Ph]TELLIR/2",
+      "GK[Unmod]GGK[Unmod]GLGK[Unmod]GGAK[Unmod]R/3",
+      "PEPTIDEK[Ac]/2"
+    )
+  )
 })
 
-test_that("processMods without msa_ref works", {
-  msa_no_ref <- mock_msa
-  msa_no_ref$msa_ref <- NULL
-  res_se <- processMods(mock_se, msa_no_ref, mod_format = "progenesis_sw")
-  expect_false("mods_ref" %in% names(rowData(res_se)))
+### argument checking ----------------------------------------------------------
+
+test_that("processMods fails with missing rowData columns", {
+  mock_msa <- new_mock_msa()
+  mock_se <- new_mock_se()
+  # drop mods column from rowData
+  rowData(mock_se) <- rowData(mock_se)[-3]
+
+  expect_error(processMods(mock_se, mock_msa))
 })
 
-test_that("processMods handles co-extracts and missing mods", {
-  res_se <- processMods(mock_se, mock_msa, mod_format = "progenesis_sw")
-  rd <- rowData(res_se)
-  expect_true(is.na(rd$mods_pep[4]))
-  expect_true(is.na(rd$mods_var[4]))
-  expect_true(is.na(rd$mods_msa[4]))
-  expect_true(is.na(rd$mods_ref[4]))
-  expect_equal(rd$precursor[4], "PEPTIDE/2")
-  expect_equal(rd$mods_pep[7], "K|1|Unmod;K|6|Unmod")
+test_that("processMods fails with invalid msa object", {
+  mock_se <- new_mock_se()
+
+  expect_error(processMods(mock_se, list(unaligned = new_mock_msa()$unaligned)))
+  expect_error(processMods(mock_se, list(unaligned = "not_aassl", msa = "not_aassl")))
+})
+
+test_that("processMods fails with invalid argument types", {
+  mock_se <- new_mock_se()
+  mock_msa <- new_mock_msa()
+
+  expect_error(processMods(mock_se, mock_msa, unmods = 123))
+  expect_error(processMods(mock_se, mock_msa, strip_mods = list(c("K"))))
+  expect_error(processMods(mock_se, mock_msa, rename_mods = list("Ac" = "Acetyl")))
+})
+
+### argument functionality -----------------------------------------------------
+
+test_that("processMods correctly parses other formats", {
+  mock_se <- new_mock_se(nrow = 1)
+  mock_msa <- new_mock_msa()
+
+  rowData(mock_se)$mods[[1]] <- "[2] (K) Ac"
+  res <- suppressMessages(processMods(mock_se, mock_msa, mod_format = "progenesis_sw"))
+  expect_equal(rowData(res)$mods_pep, "K|2|Ac")
+})
+
+test_that("processMods correctly adds unmods", {
+  mock_se <- new_mock_se(nrow = 1)
+  mock_msa <- new_mock_msa()
+
+  res <- suppressMessages(processMods(mock_se, mock_msa, unmods = "R"))
+  expect_equal(rowData(res)$mods_pep, "K|2|Ac;R|6|Unmod")
+})
+
+test_that("processMods correctly strips modifications", {
+  mock_se <- new_mock_se(nrow = 1)
+  mock_msa <- new_mock_msa()
+
+  rowData(mock_se)$mods[[1]] <- "[N-term] Propionyl (N-term)|[2] Ac (K)|[6] Ac (R)"
+  res <- suppressMessages(processMods(mock_se, mock_msa, strip_mods = list(Propionyl = "N-term", Ac = "K")))
+  expect_equal(rowData(res)$mods_pep, "K|2|Unmod;R|6|Ac")
+})
+
+test_that("processMods correctly renames modifications", {
+  mock_se <- new_mock_se()
+  mock_msa <- new_mock_msa()
+
+  res <- suppressMessages(processMods(mock_se, mock_msa, rename_mods = list("Ac" ~ "Acetyl")))
+  expect_equal(
+    rowData(res)$mods_pep,
+    c(
+      "K|2|Acetyl",
+      "K|1|Acetyl;K|10|Unmod;K|11|Unmod",
+      "K|3|Unmod;S|4|Ph",
+      "K|3|Unmod;S|4|Ph",
+      "K|2|Unmod;K|5|Unmod;K|9|Unmod;K|13|Unmod",
+      "K|8|Acetyl"
+    )
+  )
+})
+
+test_that("processMods handles peptides with no modifications", {
+  mock_se <- new_mock_se()[5, ]
+  mock_msa <- new_mock_msa()
+
+  res <- suppressMessages(processMods(mock_se, mock_msa, unmods = NULL))
+  expect_true(
+    is.na(rowData(res)$mods_pep) &&
+      is.na(rowData(res)$mods_var) &&
+      is.na(rowData(res)$mods_msa)
+  )
+  expect_equal(rowData(res)$precursor, "GKGGKGLGKGGAKR/3")
+})
+
+test_that("processMods handles non-histone peptides", {
+  mock_se <- new_mock_se()[6, ]
+  mock_msa <- new_mock_msa()
+
+  res <- suppressMessages(processMods(mock_se, mock_msa))
+  expect_equal(rowData(res)$mods_pep, "K|8|Ac")
+  expect_true(is.na(rowData(res)$mods_var) && is.na(rowData(res)$mods_msa))
+})
+
+test_that("processMods does not add 'mods_ref' column when msa_ref is absent", {
+  mock_se <- new_mock_se(nrow = 1)
+  mock_msa <- new_mock_msa()[c("unaligned", "msa")]
+
+  res <- suppressMessages(processMods(mock_se, mock_msa))
+  expect_false("mods_ref" %in% colnames(rowData(res)))
+})
+
+test_that("strip_mods and unmods interact correctly", {
+  mock_se <- new_mock_se()[3, ]
+  mock_msa <- new_mock_msa()
+
+  res <- suppressMessages(processMods(mock_se, mock_msa, strip_mods = list(Ph = "S"), unmods = "S"))
+  expect_equal(rowData(res)$mods_pep, "S|4|Unmod")
 })
 
 ## processMods.QFeatures -------------------------------------------------------
 
 test_that("processMods.QFeatures works", {
-  res_qf <- processMods(mock_qf, mock_msa, "peptides", mod_format = "progenesis_sw")
-  rd <- rowData(res_qf[["peptides"]])
+  mock_msa <- new_mock_msa()
+  mock_qf <- new_mock_qf()
+
+  res_qf <- suppressMessages(processMods(mock_qf, mock_msa, "assay1"))
+  # unchanged
   expect_s4_class(res_qf, "QFeatures")
-  expect_true("mods_pep" %in% names(rd))
-  expect_equal(rd$mods_pep[1], "Q|2|Ac;R|5|Me2")
-})
+  expect_length(assayLinks(res_qf, 2), 2)
+  expect_equal(rowData(res_qf[[2]]), rowData(mock_qf[[2]]))
+  # changed
+  rd <- rowData(res_qf[["assay1"]])
+  expect_length(
+    setdiff(
+      names(rd),
+      c(names(rowData(mock_qf[["assay1"]])), "mods_pep", "mods_var", "mods_msa", "mods_ref", "precursor")
+    ),
+    0
+  )
+  # of which the original columns are unchanged
+  expect_identical(
+    rd[c("feature_number", "sequence", "mods", "charge", "histone", "histone_family", "histone_group", "start_index")],
+    rowData(mock_qf[["assay1"]])
+  )
+  # new columns
+  expect_equal(
+    rd$mods_pep,
+    c(
+      "K|2|Ac",
+      "K|1|Ac;K|10|Unmod;K|11|Unmod",
+      "K|3|Unmod;S|4|Ph",
+      "K|3|Unmod;S|4|Ph",
+      "K|2|Unmod;K|5|Unmod;K|9|Unmod;K|13|Unmod",
+      "K|8|Ac"
+    )
+  )
+  expect_equal(
+    rd$mods_var,
+    c(
+      "K|4|Ac",
+      "K|27|Ac;K|36|Unmod;K|37|Unmod",
+      "K|55/56|Unmod;S|56/57|Ph",
+      "K|55/56|Unmod;S|56/57|Ph",
+      "K|5|Unmod;K|8|Unmod;K|12|Unmod;K|16|Unmod",
+      NA
+    )
+  )
+  expect_equal(
+    rd$mods_msa,
+    c(
+      "K|7|Ac",
+      "K|34|Ac;K|43|Unmod;K|44|Unmod",
+      "K|63|Unmod;S|64|Ph",
+      "K|61/63|Unmod;S|62/64|Ph",
+      "K|5|Unmod;K|8|Unmod;K|12|Unmod;K|16|Unmod",
+      NA
+    )
+  )
+  expect_equal(
+    rd$mods_ref,
+    c(
+      "K|4|Ac",
+      "K|27|Ac;K|36|Unmod;K|37|Unmod",
+      "K|56|Unmod;S|57|Ph",
+      "K|54/56|Unmod;S|55/57|Ph",
+      "K|5|Unmod;K|8|Unmod;K|12|Unmod;K|16|Unmod",
+      NA
+    )
+  )
+  expect_equal(
+    rd$precursor,
+    c(
+      "TK[Ac]QTAR/2",
+      "K[Ac]SAPATGGVK[Unmod]K[Unmod]PHR/3",
+      "YQK[Unmod]S[Ph]TELLIR/2",
+      "YQK[Unmod]S[Ph]TELLIR/2",
+      "GK[Unmod]GGK[Unmod]GLGK[Unmod]GGAK[Unmod]R/3",
+      "PEPTIDEK[Ac]/2"
+    )
+  )
 
-test_that("processMods throws expected errors", {
-  bad_se <- mock_se
-  rowData(bad_se)$sequence <- NULL
-  expect_error(processMods(bad_se, mock_msa))
+  res_qf_idx <- suppressMessages(processMods(mock_qf, mock_msa, 1))
+  expect_identical(res_qf, res_qf_idx)
 
-  bad_msa <- mock_msa
-  bad_msa$msa <- NULL
-  expect_error(processMods(mock_se, bad_msa))
-})
-
-test_that("processMods handles multiple start indices", {
-  res_se <- processMods(mock_se, mock_msa, mod_format = "progenesis_sw")
-  rd <- rowData(res_se)
-  expect_equal(rd$mods_var[7], "K|9/11|Unmod;K|14/16|Unmod")
+  res_qf_multi <- suppressMessages(processMods(mock_qf, mock_msa, 1:2))
+  expect_equal(rowData(res_qf_multi[[1]]), rowData(res_qf_multi[[2]]))
+  expect_equal(rowData(res_qf_multi[[1]]), rowData(res_qf[[1]]))
 })
