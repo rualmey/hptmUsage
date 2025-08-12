@@ -5,7 +5,7 @@
 # https://github.com/HaoGroup-ProtContLib/Protein-Contaminant-Libraries-for-DDA-and-DIA-Proteomics
 
 print(Sys.time())
-# "2025-07-10 14:40:29 UTC"
+# "2025-08-12 10:57:49 UTC"
 
 # helper function to filter histones
 remove_histones <- function(database) {
@@ -39,7 +39,7 @@ stem_cell_culture <- Biostrings::readAAStringSet(
 ) |>
   remove_histones()
 
-contaminants <- Biostrings::AAStringSetList(
+.contaminants <- Biostrings::AAStringSetList(
   "universal" = universal,
   "cell_culture" = cell_culture,
   "mouse_tissue" = mouse_tissue,
@@ -48,4 +48,4 @@ contaminants <- Biostrings::AAStringSetList(
   "stem_cell_culture" = stem_cell_culture
 )
 
-usethis::use_data(contaminants, internal = TRUE, overwrite = TRUE)
+usethis::use_data(.contaminants, internal = TRUE, overwrite = TRUE)
