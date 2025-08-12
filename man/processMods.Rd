@@ -87,6 +87,7 @@ within a peptide to the matching histone variant(s). It also allows to add
 chemical derivatization), and rename hPTMs (e.g., from "Trimethyl" to "Me3").
 }
 \examples{
+\dontrun{
 qf <- matchHistones(ncbtoy, aligned_histones$unaligned, 1)
 
 # in this dataset, mods follow the "progenesis_sw" format
@@ -110,6 +111,8 @@ processMods(
   mod_format = "progenesis_sw",
   rename_mods = list("Ac" ~ "Acetyl", "Me2" ~ "Dimethyl", "Me3" ~ "Trimethyl")
 )
+}
+\dontrun{
 se <- matchHistones(ncbtoy[[1]], aligned_histones$unaligned)
 
 # in this dataset, mods follow the "progenesis_sw" format
@@ -131,4 +134,5 @@ processMods(
   mod_format = "progenesis_sw",
   rename_mods = list("Ac" ~ "Acetyl", "Me2" ~ "Dimethyl", "Me3" ~ "Trimethyl")
 )
+}
 }
