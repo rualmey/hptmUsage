@@ -162,6 +162,7 @@ setMethod(
     # combine variants of the same family
     match_summary <- match_df |>
       dplyr::group_by(.data[["idx"]]) |>
+      dplyr::arrange(.data[["histone_variant"]]) |>
       dplyr::summarise(
         histone = dplyr::first(.data[["histone"]]),
         histone_family = dplyr::first(.data[["histone_family"]]),
