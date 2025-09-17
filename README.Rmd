@@ -2,8 +2,6 @@
 output: github_document
 ---
 
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -16,40 +14,48 @@ knitr::opts_chunk$set(
 # hptmUsage
 
 <!-- badges: start -->
+[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+[![License](https://img.shields.io/badge/license-GPLv3-blue)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 <!-- badges: end -->
+
+Preprocessing, visualization, and analysis (e.g., differential usage) of histone post-translational modifications (hPTMs).
+This package builds on the 'msqrob2PTM' workflow to enable robust and performant analysis of hPTM data.
 
 Histone PTMs are parsed against consensus backbones, followed by a bespoke msqrob2PTM workflow for differential hPTM usage analysis.
 Input is, as of now, a peptide ion data export from Progenesis (all identified features).
 
 ## Installation
 
-You can install the development version of hptmUsage like so:
+Install the development version of hptmUsage from GitHub with:
 
 ``` r
-# FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
+# Install using "pak", alternatively use `devtools::install_github()` or `renv::install()`
+# install.packages("pak")
+pak::pak("rualmey/hptmUsage")
 ```
 
-## Example
+## Usage
 
-This is a basic example which shows you how to solve a common problem:
+[Example code](https://github.com/rualmey/hptmUsage/blob/main/data-raw/hptm_benchmark.R) on the processing of a [benchmark dataset](https://doi.org/10.1039/D1MO00201E) is available in this repo.
+
+Below, some basic functionality is shown:
 
 ```{r example}
 library(hptmUsage)
-## basic example code
+
+# Reading a Progenesis QIP all ion export
+hptmUsageData("all_ion_export.csv") |>
+  readProgenesis()
+
+# Retrieving histones from UniProt and aligning their sequences using MAFFT
+# Note: this requires MAFFT to be on the system PATH
+histonesFromUniprot() |>
+ alignHistones()
+
+# Match peptide sequences to the retrieved histones
+ncbtoy |>
+  matchHistones(alignHistones()$unaligned, 1)
+
+# And more to be found in the example code
+print("https://github.com/rualmey/hptmUsage/blob/main/data-raw/hptm_benchmark.R")
 ```
-
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
-
-```{r cars}
-summary(cars)
-```
-
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this.
-
-You can also embed plots, for example:
-
-```{r pressure, echo = FALSE}
-plot(pressure)
-```
-
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
