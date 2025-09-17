@@ -62,19 +62,7 @@ po/*~
 rsconnect/
 
 # quarto
-.quarto/
+/.quarto/
 
 # temporary leftovers
-# old analyses for reference
 /inst/_old/
-# ignore data and outputs but keep folder structure intact
-# # /data/*
-# # /data/*/
-# /data/archive
-# !/data/.gitkeep
-# !/data/*/.gitkeep
-# # /out/*
-# # /out/*/
-# /out/_old
-# !/out/.gitkeep
-# !/out/*/.gitkeep
