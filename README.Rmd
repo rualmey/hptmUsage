@@ -36,7 +36,7 @@ pak::pak("rualmey/hptmUsage")
 
 ## Usage
 
-[Example code](https://github.com/rualmey/hptmUsage/blob/main/data-raw/hptm_benchmark.R) on the processing of a [benchmark dataset](https://doi.org/10.1039/D1MO00201E) is available in this repo.
+[Example code](/data-raw/hptm_benchmark.R) on the processing of a [benchmark dataset](https://doi.org/10.1039/D1MO00201E) is available in this repo.
 
 Below, some basic functionality is shown:
 
@@ -56,6 +56,5 @@ histonesFromUniprot() |>
 ncbtoy |>
   matchHistones(alignHistones()$unaligned, 1)
 
-# And more to be found in the example code
-print("https://github.com/rualmey/hptmUsage/blob/main/data-raw/hptm_benchmark.R")
+# And more to be found in the example code above
 ```

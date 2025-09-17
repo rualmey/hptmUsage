@@ -31,10 +31,9 @@ pak::pak("rualmey/hptmUsage")
 
 ## Usage
 
-[Example
-code](https://github.com/rualmey/hptmUsage/blob/main/data-raw/hptm_benchmark.R)
-on the processing of a [benchmark
-dataset](https://doi.org/10.1039/D1MO00201E) is available in this repo.
+[Example code](/data-raw/hptm_benchmark.R) on the processing of a
+[benchmark dataset](https://doi.org/10.1039/D1MO00201E) is available in
+this repo.
 
 Below, some basic functionality is shown:
 
@@ -45,10 +44,10 @@ library(hptmUsage)
 #> Loading required package: SummarizedExperiment
 #> Loading required package: MatrixGenerics
 #> Loading required package: matrixStats
-#>
+#> 
 #> Attaching package: 'MatrixGenerics'
 #> The following objects are masked from 'package:matrixStats':
-#>
+#> 
 #>     colAlls, colAnyNAs, colAnys, colAvgsPerRowSet, colCollapse,
 #>     colCounts, colCummaxs, colCummins, colCumprods, colCumsums,
 #>     colDiffs, colIQRDiffs, colIQRs, colLogSumExps, colMadDiffs,
@@ -68,19 +67,19 @@ library(hptmUsage)
 #> Loading required package: stats4
 #> Loading required package: BiocGenerics
 #> Loading required package: generics
-#>
+#> 
 #> Attaching package: 'generics'
 #> The following objects are masked from 'package:base':
-#>
+#> 
 #>     as.difftime, as.factor, as.ordered, intersect, is.element, setdiff,
 #>     setequal, union
-#>
+#> 
 #> Attaching package: 'BiocGenerics'
 #> The following objects are masked from 'package:stats':
-#>
+#> 
 #>     IQR, mad, sd, var, xtabs
 #> The following objects are masked from 'package:base':
-#>
+#> 
 #>     anyDuplicated, aperm, append, as.data.frame, basename, cbind,
 #>     colnames, dirname, do.call, duplicated, eval, evalq, Filter, Find,
 #>     get, grep, grepl, is.unsorted, lapply, Map, mapply, match, mget,
@@ -88,34 +87,34 @@ library(hptmUsage)
 #>     rbind, Reduce, rownames, sapply, saveRDS, table, tapply, unique,
 #>     unsplit, which.max, which.min
 #> Loading required package: S4Vectors
-#>
+#> 
 #> Attaching package: 'S4Vectors'
 #> The following object is masked from 'package:utils':
-#>
+#> 
 #>     findMatches
 #> The following objects are masked from 'package:base':
-#>
+#> 
 #>     expand.grid, I, unname
 #> Loading required package: IRanges
 #> Loading required package: GenomeInfoDb
 #> Loading required package: Biobase
 #> Welcome to Bioconductor
-#>
+#> 
 #>     Vignettes contain introductory material; view with
 #>     'browseVignettes()'. To cite Bioconductor, see
 #>     'citation("Biobase")', and for packages 'citation("pkgname")'.
-#>
+#> 
 #> Attaching package: 'Biobase'
 #> The following object is masked from 'package:MatrixGenerics':
-#>
+#> 
 #>     rowMedians
 #> The following objects are masked from 'package:matrixStats':
-#>
+#> 
 #>     anyMissing, rowMedians
-#>
+#> 
 #> Attaching package: 'QFeatures'
 #> The following object is masked from 'package:base':
-#>
+#> 
 #>     sweep
 
 # Reading a Progenesis QIP all ion export
@@ -140,7 +139,7 @@ histonesFromUniprot() |>
 #> [["H2B"]] H2B1K_HUMAN=MPEPAKSAPAPKKGSKKAVTKAQKKDGKKRKRSRKESYSVYVYKVLKQVHPDTGI...
 #> [["H3"]] CENPA_HUMAN=MGPRRRSRKPEAPRRRSPSPTPTPGPSRRGPSLGASSHQHSRRRQGWLKEIRKLQK...
 #> [["H4"]] H4_HUMAN=MSGRGKGGKGLGKGGAKRHRKVLRDNIQGITKPAIRRLARRGGVKRISGLIYEETRGVL...
-#>
+#> 
 #> $msa
 #> AAStringSetList of length 5
 #> [["H1"]] H10_HUMAN=-----------------------------------MTENST-SAPAA-----------...
@@ -148,7 +147,7 @@ histonesFromUniprot() |>
 #> [["H2B"]] H2B1A_HUMAN=--------MPEVSSKGAT---ISKK-----G-FKKAVV--------KTQKK-EGK...
 #> [["H3"]] H33_HUMAN=MARTKQTARKSTGGKAPRKQLATKAAR----KSAPSTGGVKKPHRYRPGTVALREIRR...
 #> [["H4"]] H4_HUMAN=MSGRGKGGKGLGKGGAKRHRKVLRDNIQGITKPAIRRLARRGGVKRISGLIYEETRGVL...
-#>
+#> 
 #> $msa_ref
 #> AAStringSetList of length 5
 #> [["H1"]] ref_H11_HUMAN=-----------------------------------MSETVP-PAPAASAAP---...
@@ -161,11 +160,9 @@ histonesFromUniprot() |>
 ncbtoy |>
   matchHistones(alignHistones()$unaligned, 1)
 #> ⠙ 0/5 ETA: ? | Matching sequences
-#> ⠹ 2/5 ETA:  3s | Matching sequences
+#> ⠹ 3/5 ETA:  2s | Matching sequences
 #> An instance of class QFeatures containing 1 set(s):
 #>  [1] precursorRaw: SummarizedExperiment with 5472 rows and 10 columns
 
-# And more to be found in the example code
-print("https://github.com/rualmey/hptmUsage/blob/main/data-raw/hptm_benchmark.R")
-#> [1] "https://github.com/rualmey/hptmUsage/blob/main/data-raw/hptm_benchmark.R"
+# And more to be found in the example code above
 ```
