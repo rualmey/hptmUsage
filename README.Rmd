@@ -41,6 +41,7 @@ pak::pak("rualmey/hptmUsage")
 Below, some basic functionality is shown:
 
 ```{r example}
+# hptmUsage automatically loads QFeatures for its infrastructure
 library(hptmUsage)
 
 # Reading a Progenesis QIP all ion export
@@ -54,7 +55,7 @@ histonesFromUniprot() |>
 
 # Match peptide sequences to the retrieved histones
 ncbtoy |>
-  matchHistones(alignHistones()$unaligned, 1)
+  matchHistones(aligned_histones$unaligned, 1)
 
 # And more to be found in the example code above
 ```

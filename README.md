@@ -38,6 +38,7 @@ this repo.
 Below, some basic functionality is shown:
 
 ``` r
+# hptmUsage automatically loads QFeatures for its infrastructure
 library(hptmUsage)
 #> Loading required package: QFeatures
 #> Loading required package: MultiAssayExperiment
@@ -158,9 +159,9 @@ histonesFromUniprot() |>
 
 # Match peptide sequences to the retrieved histones
 ncbtoy |>
-  matchHistones(alignHistones()$unaligned, 1)
+  matchHistones(aligned_histones$unaligned, 1)
 #> ⠙ 0/5 ETA: ? | Matching sequences
-#> ⠹ 3/5 ETA:  2s | Matching sequences
+#> ⠹ 2/5 ETA:  4s | Matching sequences
 #> An instance of class QFeatures containing 1 set(s):
 #>  [1] precursorRaw: SummarizedExperiment with 5472 rows and 10 columns
 
