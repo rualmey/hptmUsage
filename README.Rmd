@@ -21,9 +21,6 @@ knitr::opts_chunk$set(
 Preprocessing, visualization, and analysis (e.g., differential usage) of histone post-translational modifications (hPTMs).
 This package builds on the 'msqrob2PTM' workflow to enable robust and performant analysis of hPTM data.
 
-Histone PTMs are parsed against consensus backbones, followed by a bespoke msqrob2PTM workflow for differential hPTM usage analysis.
-Input is, as of now, a peptide ion data export from Progenesis (all identified features).
-
 ## Installation
 
 Install the development version of hptmUsage from GitHub with:
@@ -33,6 +30,12 @@ Install the development version of hptmUsage from GitHub with:
 # install.packages("pak")
 pak::pak("rualmey/hptmUsage")
 ```
+
+This package requires the following software to be installed (and to be found on PATH):
+
+* [MAFFT](https://mafft.cbrc.jp/alignment/software/) for multiple sequence alignment
+
+* [Quarto](https://quarto.org/docs/get-started/) for reporting of results
 
 ## Usage
 
@@ -45,6 +48,7 @@ Below, some basic functionality is shown:
 library(hptmUsage)
 
 # Reading a Progenesis QIP all ion export
+# As of now, this is the only supported input data format
 hptmUsageData("all_ion_export.csv") |>
   readProgenesis()
 

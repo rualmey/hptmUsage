@@ -14,11 +14,6 @@ histone post-translational modifications (hPTMs). This package builds on
 the ‘msqrob2PTM’ workflow to enable robust and performant analysis of
 hPTM data.
 
-Histone PTMs are parsed against consensus backbones, followed by a
-bespoke msqrob2PTM workflow for differential hPTM usage analysis. Input
-is, as of now, a peptide ion data export from Progenesis (all identified
-features).
-
 ## Installation
 
 Install the development version of hptmUsage from GitHub with:
@@ -28,6 +23,15 @@ Install the development version of hptmUsage from GitHub with:
 # install.packages("pak")
 pak::pak("rualmey/hptmUsage")
 ```
+
+This package requires the following software to be installed (and to be
+found on PATH):
+
+- [MAFFT](https://mafft.cbrc.jp/alignment/software/) for multiple
+  sequence alignment
+
+- [Quarto](https://quarto.org/docs/get-started/) for reporting of
+  results
 
 ## Usage
 
@@ -119,6 +123,7 @@ library(hptmUsage)
 #>     sweep
 
 # Reading a Progenesis QIP all ion export
+# As of now, this is the only supported input data format
 hptmUsageData("all_ion_export.csv") |>
   readProgenesis()
 #> Some features had a note:
@@ -161,7 +166,8 @@ histonesFromUniprot() |>
 ncbtoy |>
   matchHistones(aligned_histones$unaligned, 1)
 #> ⠙ 0/5 ETA: ? | Matching sequences
-#> ⠹ 2/5 ETA:  4s | Matching sequences
+#> ⠹ 1/5 ETA:  3s | Matching sequences
+#> ⠸ 4/5 ETA:  1s | Matching sequences
 #> An instance of class QFeatures containing 1 set(s):
 #>  [1] precursorRaw: SummarizedExperiment with 5472 rows and 10 columns
 
