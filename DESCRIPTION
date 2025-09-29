@@ -62,6 +62,7 @@ RoxygenNote: 7.3.2
 SystemRequirements: mafft, quarto
 Collate:
     'data.R'
+    'deconvolute.R'
     'hptmMSA.R'
     'hptmUsage-package.R'
     'matchHistones.R'
