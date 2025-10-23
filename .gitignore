@@ -63,6 +63,3 @@ rsconnect/
 
 # quarto
 /.quarto/
-
-# temporary leftovers
-/inst/_old/
