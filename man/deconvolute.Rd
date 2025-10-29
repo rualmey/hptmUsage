@@ -6,24 +6,29 @@
 \alias{deconvolute,SummarizedExperiment-method}
 \title{Deconvolute (hPTM) Features}
 \usage{
-deconvolute(object, ..., deconv = "mods_ref", sep = ";", group = NULL)
+deconvolute(
+  object,
+  ...,
+  deconv = "mods_ref",
+  sep = ";",
+  group = "histone_group"
+)
 
 \S4method{deconvolute}{QFeatures}(
   object,
   i,
-  fcol,
   name = "precursorDeconv",
-  filter = NULL,
+  identifier = "feature_number",
   deconv = "mods_ref",
   sep = ";",
-  group = NULL
+  group = "histone_group"
 )
 
-\S4method{deconvolute}{SummarizedExperiment}(object, deconv = "mods_ref", sep = ";", group = NULL)
+\S4method{deconvolute}{SummarizedExperiment}(object, deconv = "mods_ref", sep = ";", group = "histone_group")
 }
 \arguments{
-\item{object}{The \code{QFeatures} or \code{SummarizedExperiment} object in which the
-contaminants should be tagged.}
+\item{object}{The \code{QFeatures} or \code{SummarizedExperiment} object to be
+deconvoluted.}
 
 \item{...}{Additional arguments passed to specific methods.}
 
@@ -40,14 +45,11 @@ grouped; for example, the histone family or histone variant group.}
 \item{i}{The index (\code{integer()}) or name (\code{character()}) of the assay(s) to
 be processed.}
 
-\item{fcol}{A \code{character(1)} naming a rowData variable defining the unique
-features to deconvolute.}
-
 \item{name}{Name(s) of the new assay(s) to add to the QFeatures object. Must
 have the same length as i.}
 
-\item{filter}{Either an instance of class \code{AnnotationFilter} or a formula.
-See \code{\link[QFeatures:QFeatures-filtering]{QFeatures::filterFeatures()}}}
+\item{identifier}{A \code{character(1)} naming a rowData variable uniquely
+defining the features.}
 }
 \value{
 A \code{QFeatures} with deconvoluted assay(s) added or a deconvoluted
@@ -67,6 +69,26 @@ PTMs cannot be discerned from one another, so they are added into "hPTM
 groups".
 }
 \examples{
-# TODO
-# TODO
+new_qf <- hptm_benchmark |>
+  deconvolute(i = "precursor")
+# By default, a hPTM will be defined as the unique combination of histone
+# group and PTM, e.g., H33K27Me3
+rowData(new_qf[["precursorDeconv"]])[938, ]
+# but if two hPTMs are only quantified from the same features, then these
+# will form one "hPTM group".
+rowData(new_qf[["precursorDeconv"]])[910, ]
+# and if the unaligned amino acid index is to be used instead
+new_qf_unaligned <- hptm_benchmark |>
+  deconvolute(i = "precursor", deconv = "mods_var")
+new_se <- hptm_benchmark[[2]] |>
+  deconvolute()
+# By default, a hPTM will be defined as the unique combination of histone
+# group and PTM, e.g., H33K27Me3
+rowData(new_se)[938, ]
+# but if two hPTMs are only quantified from the same features, then these
+# will form one "hPTM group".
+rowData(new_se)[910, ]
+# and if the unaligned amino acid index is to be used instead
+new_se_unaligned <- hptm_benchmark[[2]] |>
+  deconvolute(deconv = "mods_var")
 }
