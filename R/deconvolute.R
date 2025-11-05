@@ -120,7 +120,7 @@ setMethod(
     sep = ";",
     group = "histone_group"
   ) {
-    # filter out features that carry no PTMs
+    # filter out features that carry no hPTMs
     object <- object[!is.na(rowData(object)[[deconv]]), ]
     deconv_map <- .deconv_grouper(object, deconv, sep, group)
     new_se <- object[deconv_map$rows_same_ptm, ]
@@ -136,15 +136,15 @@ setMethod(
   degenerate_groups <- rowData(object) |>
     tibble::as_tibble(rownames = ".rowname") |>
     dplyr::select(dplyr::all_of(c(".rowname", deconv, group))) |>
-    tidyr::separate_longer_delim(deconv, sep) |>
-    dplyr::summarise(rows_same_ptm = list(sort(.data[[".rowname"]])), .by = c(deconv, group))
+    tidyr::separate_longer_delim(dplyr::all_of(deconv), sep) |>
+    dplyr::summarise(rows_same_ptm = list(sort(.data[[".rowname"]])), .by = dplyr::all_of(c(deconv, group)))
   if (!is.null(group)) {
     processed_groups <- degenerate_groups |>
       dplyr::summarise(
         ptms = stringr::str_flatten(!!rlang::sym(deconv), collapse = sep),
         # by grouping earlier, this will only contain 1 unique histone family
         grouper = dplyr::first(!!rlang::sym(group)),
-        .by = .data[["rows_same_ptm"]]
+        .by = dplyr::all_of("rows_same_ptm")
       ) |>
       dplyr::mutate(
         ptms = stringr::str_c(.data[["grouper"]], .data[["ptms"]], sep = "#"),
@@ -154,7 +154,7 @@ setMethod(
     processed_groups <- degenerate_groups |>
       dplyr::summarise(
         ptms = stringr::str_flatten(!!rlang::sym(deconv), collapse = sep),
-        .by = .data[["rows_same_ptm"]]
+        .by = dplyr::all_of("rows_same_ptm")
       )
   }
 
