@@ -50,6 +50,7 @@ Suggests:
     covr,
     ExploreModelMatrix,
     ggmsa,
+    MsCoreUtils,
     S4Vectors,
     testthat (>= 3.0.0),
     vcr,
@@ -66,6 +67,7 @@ Collate:
     'hptmMSA.R'
     'hptmUsage-package.R'
     'matchHistones.R'
+    'normalizeUsage.R'
     'processMods.R'
     'readProgenesis.R'
     'replaceColData.R'
