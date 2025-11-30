@@ -56,8 +56,7 @@ A \code{QFeatures} with deconvoluted assay(s) added or a deconvoluted
 \code{SummarizedExperiment} (same as supplied).
 }
 \description{
-This is primarily an internal function required before usage aggregation and
-normalization.
+This is primarily an internal function required before usage aggregation.
 }
 \details{
 One feature can contain multiple hPTMs. Such features will be replicated and

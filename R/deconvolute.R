@@ -1,8 +1,7 @@
 #' Deconvolute (hPTM) Features
 #'
 #' @description
-#' This is primarily an internal function required before usage aggregation and
-#' normalization.
+#' This is primarily an internal function required before usage aggregation.
 #'
 #' @details
 #' One feature can contain multiple hPTMs. Such features will be replicated and
@@ -158,5 +157,5 @@ setMethod(
       )
   }
 
-  processed_groups |> tidyr::unnest(rows_same_ptm)
+  processed_groups |> tidyr::unnest(dplyr::all_of("rows_same_ptm"))
 }
