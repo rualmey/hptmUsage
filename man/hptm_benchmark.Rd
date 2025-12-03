@@ -5,12 +5,46 @@
 \alias{hptm_benchmark}
 \title{hPTM Benchmark Data}
 \format{
-TODO A QFeatures with 7,240 rows and 60 columns:
+A QFeatures object containing 14 assays of 42 benchmark samples as described
+in the reference.
 \describe{
-\item{assay}{contains the raw peptide intensities}
-\item{rowData}{contains a variable "Proteins" with the protein accession and an variable ecoli to indicate if the protein is a spikin}
-\item{colData}{contains a factor condition indicating the spike-in condition}
-...
+\item{assay \code{precursorRaw}}{contains the raw (not log-transformed) peptide ion abundances of 677 features}
+\item{assay \code{precursor}}{contains the globally normalized peptide ion abundances of 578 filtered features}
+\item{assay \code{precursorCoextr}}{contains the globally normalized peptide ion abundances of 134 filtered features from co-extracts}
+\item{assay \code{co-extracts}}{contains the robustly summarized protein abundances of 45 co-extracts}
+\item{assay \code{precursorHistone}}{contains the globally normalized peptide ion abundances of 444 filtered features from histones}
+\item{assay \code{precursorHistoneNormHistone}}{contains the usage-normalized (usage defined against the nucleosome) peptide ion abundances of 444 histone features}
+\item{assay \code{precursorHistoneNormHistoneDeconv}}{contains the 1172 features deconvoluted from the assay \code{precursorHistoneNormHistone}}
+\item{assay \code{ptmVariantAgnostic}}{contains the robustly summarized hPTM usage of 347 histone groups}
+\item{assay \code{precursorHistoneNormHistone_family}}{contains the usage-normalized (usage defined against the corresponding histone family) peptide ion abundances of 444 histone features}
+\item{assay \code{precursorHistoneNormHistone_familyDeconv}}{contains the 1172 features deconvoluted from the assay \code{precursorHistoneNormHistone_family}}
+\item{assay \code{ptmFamilyCorrected}}{contains the robustly summarized hPTM usage of 347 histone groups}
+\item{assay \code{precursorHistoneNormHistone_group}}{contains the usage-normalized (usage defined against the corresponding histone group) peptide ion abundances of 444 histone features}
+\item{assay \code{precursorHistoneNormHistone_groupDeconv}}{contains the 1172 features deconvoluted from the assay \code{precursorHistoneNormHistone_group}}
+\item{assay \code{ptmVariantCorrected}}{contains the robustly summarized hPTM usage of 347 histone groups}
+\item{rowData}{contains up to 55 variables, possibly including:
+(I) variables exported from Progenesis QIP, e.g., "feature_number", "protein", "sequence", "mods", ...;
+(II) tags exported from Progenesis QIP, e.g., "histone_id_no_err_tol" to "no_protein_id_ra";
+(III) variables created during data processing using hptmUsage functions:
+"histone" = TRUE if the sequence matched any histone variant, else FALSE;
+"histone_family" = the histone family to which a sequence matched, NA is no match;
+"core_histone" = TRUE if the sequence matched to one of H2A/H2B/H3/H4, else FALSE;
+"histone_group" = all histone variants to which the sequence was matched;
+"start_index" = list of locations of the first amino acid within each matching variant;
+"end_index" = list of locations of the last amino acid within each matching variant;
+"ambiguous_match" = TRUE if the sequence has ambiguous histone family assignment or multiple possible positions per variant;
+"precursor" = precursor string in ProForma notation;
+"mods_pep" = clean mod string with location indexes on the peptide sequence;
+"mods_var" = clean mod string with location indexes on all matching histone variants;
+"mods_msa" = clean mod string with location indexes on all matching histone variants after MSA;
+"mods_ref" = clean mod string with "consensus" location index(es) on the histone family reference sequence after MSA;
+"contaminant" = TRUE if identified as a potential contaminant using hptmUsage::tagContaminants() else FALSE;
+"nNA" = the number of samples in which the precursor was missing;
+"pNA" = the fraction of samples in which the precursor was missing;
+".n" = the number of precursors from which the abundance/usage was summarized;
+"hptm" = combination of histone variant + amino acid + location + PTM, e.g., H33_BOVIN#K|27|Me3, possibly in a "degenerated" hPTM group separated by ";".
+}
+\item{colData}{contains 7 columns of sample metadata, including "group", "time", and "treated" (experimental factors), and "include"/"outlier" (tags for analysis)}
 }
 }
 \source{
