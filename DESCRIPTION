@@ -65,6 +65,7 @@ Collate:
     'calculateUsage.R'
     'data.R'
     'deconvolute.R'
+    'generateReport.R'
     'hptmMSA.R'
     'hptmUsage-package.R'
     'matchHistones.R'

@@ -3,6 +3,7 @@
 export(alignHistones)
 export(calculateUsage)
 export(deconvolute)
+export(generateReport)
 export(histonesFromUniprot)
 export(hptmUsageData)
 export(matchHistones)
