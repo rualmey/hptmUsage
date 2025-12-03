@@ -38,7 +38,6 @@
 #'   collapse = " OR "
 #' )
 #'}
-
 histonesFromUniprot <- function(
   histone_families = c("H1", "H2A", "H2B", "H3", "H4"),
   query = c("organism_id:9606", "reviewed:true"),
