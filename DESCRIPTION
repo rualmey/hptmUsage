@@ -21,6 +21,7 @@ Imports:
     dplyr,
     forcats,
     fs,
+    ggbreak,
     ggExtra,
     ggplot2,
     ggrepel,
