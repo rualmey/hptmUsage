@@ -62,4 +62,4 @@ po/*~
 rsconnect/
 
 # quarto
-/.quarto/
+.quarto/
