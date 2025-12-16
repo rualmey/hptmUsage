@@ -92,12 +92,16 @@ setMethod(
           usage_level
         ]]))
       )
-      object <- QFeatures::addAssay(
-        object,
-        normalizeUsage(object[[from]], usage_level = usage_level, ...),
-        to
-      )
-      object <- QFeatures::addAssayLinkOneToOne(object, from = from, to = to)
+      if (to %in% names(object)) {
+        message(paste("The assay", to, "already exists, reusing..."))
+      } else {
+        object <- QFeatures::addAssay(
+          object,
+          normalizeUsage(object[[from]], usage_level = usage_level, ...),
+          to
+        )
+        object <- QFeatures::addAssayLinkOneToOne(object, from = from, to = to)
+      }
     }
 
     object

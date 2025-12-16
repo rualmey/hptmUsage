@@ -105,6 +105,12 @@ hptm_benchmark <- hptm_benchmark |>
     i = "precursorHistone",
     name = "ptmVariantCorrected",
     usage_level = "histone_group"
+  ) |>
+  # finally, calculate histone variant usage
+  calculateUsage(
+    i = "precursorHistone",
+    name = "variant",
+    target = "variant"
   )
 
 ## Data exploration ------------------------------------------------------------

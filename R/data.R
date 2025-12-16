@@ -60,7 +60,7 @@ hptmUsageData <- function(file = NULL) {
 #' described in the reference below.
 #'
 #' @format
-#' A QFeatures object containing 14 assays of 42 benchmark samples as described
+#' A QFeatures object containing 15 assays of 42 benchmark samples as described
 #' in the reference.
 #' \describe{
 #'   \item{assay `precursorRaw`}{contains the raw (not log-transformed) peptide ion abundances of 677 features}
@@ -77,6 +77,7 @@ hptmUsageData <- function(file = NULL) {
 #'   \item{assay `precursorHistoneNormHistone_group`}{contains the usage-normalized (usage defined against the corresponding histone group) peptide ion abundances of 444 histone features}
 #'   \item{assay `precursorHistoneNormHistone_groupDeconv`}{contains the 1172 features deconvoluted from the assay `precursorHistoneNormHistone_group`}
 #'   \item{assay `ptmVariantCorrected`}{contains the robustly summarized hPTM usage of 347 histone groups}
+#'   \item{assay `variant`}{contains the robustly summarized variant usage of 27 histone variants}
 #'   \item{rowData}{contains up to 55 variables, possibly including:
 #'     (I) variables exported from Progenesis QIP, e.g., "feature_number", "protein", "sequence", "mods", ...;
 #'     (II) tags exported from Progenesis QIP, e.g., "histone_id_no_err_tol" to "no_protein_id_ra";
