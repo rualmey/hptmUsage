@@ -4,11 +4,12 @@
 \alias{calculateUsage}
 \alias{calculateUsage,QFeatures-method}
 \alias{calculateUsage,SummarizedExperiment-method}
-\title{Calculate hPTM Usage}
+\title{Calculate hPTM/Variant Usage}
 \usage{
 calculateUsage(
   object,
   ...,
+  target = c("ptm", "variant"),
   usage_level = c("histone", "histone_family", "histone_group"),
   deconv = "mods_ref",
   sep = ";",
@@ -18,9 +19,10 @@ calculateUsage(
 \S4method{calculateUsage}{QFeatures}(
   object,
   i,
-  name = "ptm",
+  name = NULL,
   identifier = "feature_number",
   ...,
+  target = c("ptm", "variant"),
   usage_level = c("histone", "histone_family", "histone_group"),
   deconv = "mods_ref",
   sep = ";",
@@ -30,6 +32,7 @@ calculateUsage(
 \S4method{calculateUsage}{SummarizedExperiment}(
   object,
   ...,
+  target = c("ptm", "variant"),
   usage_level = c("histone", "histone_family", "histone_group"),
   deconv = "mods_ref",
   sep = ";",
@@ -38,9 +41,12 @@ calculateUsage(
 }
 \arguments{
 \item{object}{The \code{QFeatures} or \code{SummarizedExperiment} object from which
-hPTM usage needs to be calculated.}
+usage needs to be calculated.}
 
 \item{...}{Additional arguments passed to \code{\link[QFeatures:QFeatures-aggregate]{QFeatures::aggregateFeatures()}}.}
+
+\item{target}{A \code{character(1)} defining whether PTM or histone variant usage
+will be calculated.}
 
 \item{usage_level}{A \code{character(1)} defining the level at which usage will be
 calculated, i.e., what is considered the "parent protein". Must be one of:
@@ -70,13 +76,13 @@ have the same length as i.}
 defining the features.}
 }
 \value{
-A \code{QFeatures} with PTM usage assay(s) added or a PTM usage
-\code{SummarizedExperiment} (same as supplied).
+A \code{QFeatures} with usage assay(s) added or a usage \code{SummarizedExperiment}
+(same as supplied).
 }
 \description{
-hPTM usage is calculated by first normalizing histone peptidoforms (i.e.,
-subtracting the "parent protein" abundance) and then summarizing to the
-hPTM level.
+hPTM or histone variant usage is calculated by first normalizing histone
+peptidoforms (i.e., subtracting the "parent protein" abundance) and then
+summarizing to the hPTM/variant level.
 }
 \examples{
 \dontrun{
@@ -110,6 +116,10 @@ new_qf_mp <- hptm_benchmark |>
 # Finally, if the unaligned amino acid index is to be used instead
 new_qf_unaligned <- hptm_benchmark |>
   calculateUsage(i = "precursorHistone", deconv = "mods_var")
+
+# Histone variant usage is also easily calculated
+new_qf_variant <- hptm_benchmark |>
+  calculateUsage(i = "precursorHistone", target = "variant")
 }
 \dontrun{
 # By default, the entire chromatosome abundance (i.e., aggregated value of
@@ -139,6 +149,10 @@ new_se_mp <- hptm_benchmark[[5]] |>
 # Finally, if the unaligned amino acid index is to be used instead
 new_se_unaligned <- hptm_benchmark[[5]] |>
   calculateUsage(deconv = "mods_var")
+
+# Histone variant usage is also easily calculated
+new_se_variant <- hptm_benchmark[[5]] |>
+  calculateUsage(target = "variant")
 }
 }
 \references{

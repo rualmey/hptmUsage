@@ -1,13 +1,15 @@
-#' Calculate hPTM Usage
+#' Calculate hPTM/Variant Usage
 #'
 #' @description
-#' hPTM usage is calculated by first normalizing histone peptidoforms (i.e.,
-#' subtracting the "parent protein" abundance) and then summarizing to the
-#' hPTM level.
+#' hPTM or histone variant usage is calculated by first normalizing histone
+#' peptidoforms (i.e., subtracting the "parent protein" abundance) and then
+#' summarizing to the hPTM/variant level.
 #'
 #' @param object The `QFeatures` or `SummarizedExperiment` object from which
-#'   hPTM usage needs to be calculated.
+#'   usage needs to be calculated.
 #' @param ... Additional arguments passed to specific methods.
+#' @param target A `character(1)` defining whether PTM or histone variant usage
+#'   will be calculated.
 #' @param usage_level A `character(1)` defining the level at which usage will be
 #'    calculated, i.e., what is considered the "parent protein". Must be one of:
 #'   * `"histone"` = the total histone abundance (default)
@@ -21,8 +23,8 @@
 #'   level at which deconvolution features (e.g., hPTMs) will be grouped; for
 #'   example, the histone family or histone variant group.
 #' @returns
-#' A `QFeatures` with PTM usage assay(s) added or a PTM usage
-#' `SummarizedExperiment` (same as supplied).
+#' A `QFeatures` with usage assay(s) added or a usage `SummarizedExperiment`
+#' (same as supplied).
 #' @export
 #' @references
 #' (1) Demeulemeester N, Gébelin M, Gomes LC, Lingor P, Carapito C, Martens L,
@@ -36,6 +38,7 @@ setGeneric(
   function(
     object,
     ...,
+    target = c("ptm", "variant"),
     usage_level = c("histone", "histone_family", "histone_group"),
     deconv = "mods_ref",
     sep = ";",
@@ -86,6 +89,10 @@ setGeneric(
 #' # Finally, if the unaligned amino acid index is to be used instead
 #' new_qf_unaligned <- hptm_benchmark |>
 #'   calculateUsage(i = "precursorHistone", deconv = "mods_var")
+#'
+#' # Histone variant usage is also easily calculated
+#' new_qf_variant <- hptm_benchmark |>
+#'   calculateUsage(i = "precursorHistone", target = "variant")
 #'}
 setMethod(
   "calculateUsage",
@@ -93,9 +100,10 @@ setMethod(
   function(
     object,
     i,
-    name = "ptm",
+    name = NULL,
     identifier = "feature_number",
     ...,
+    target = c("ptm", "variant"),
     usage_level = c("histone", "histone_family", "histone_group"),
     deconv = "mods_ref",
     sep = ";",
@@ -103,30 +111,45 @@ setMethod(
   ) {
     # Check arguments
     i <- QFeatures:::.normIndex(object, i)
+    target <- match.arg(target)
+    if (is.null(name)) {
+      name <- target
+    }
     stopifnot(length(i) == length(name))
     usage_level <- match.arg(usage_level)
 
-    object |>
+    object <- object |>
       normalizeUsage(
         i = i,
         name = paste0(i, "Norm", stringr::str_to_sentence(usage_level)),
         usage_level = usage_level,
         ...
-      ) |>
-      deconvolute(
-        i = paste0(i, "Norm", stringr::str_to_sentence(usage_level)),
-        name = paste0(i, "Norm", stringr::str_to_sentence(usage_level), "Deconv"),
-        identifier = identifier,
-        deconv = deconv,
-        sep = sep,
-        group = group
-      ) |>
-      QFeatures::aggregateFeatures(
-        i = paste0(i, "Norm", stringr::str_to_sentence(usage_level), "Deconv"),
-        fcol = "hptm",
-        name = name,
-        ...
       )
+    if (target == "ptm") {
+      object <- object |>
+        deconvolute(
+          i = paste0(i, "Norm", stringr::str_to_sentence(usage_level)),
+          name = paste0(i, "Norm", stringr::str_to_sentence(usage_level), "Deconv"),
+          identifier = identifier,
+          deconv = deconv,
+          sep = sep,
+          group = group
+        ) |>
+        QFeatures::aggregateFeatures(
+          i = paste0(i, "Norm", stringr::str_to_sentence(usage_level), "Deconv"),
+          fcol = "hptm",
+          name = name,
+          ...
+        )
+    } else {
+      object <- object |>
+        QFeatures::aggregateFeatures(
+          i = paste0(i, "Norm", stringr::str_to_sentence(usage_level)),
+          fcol = "histone_group",
+          name = name,
+          ...
+        )
+    }
   }
 )
 
@@ -161,6 +184,10 @@ setMethod(
 #' # Finally, if the unaligned amino acid index is to be used instead
 #' new_se_unaligned <- hptm_benchmark[[5]] |>
 #'   calculateUsage(deconv = "mods_var")
+#'
+#' # Histone variant usage is also easily calculated
+#' new_se_variant <- hptm_benchmark[[5]] |>
+#'   calculateUsage(target = "variant")
 #'}
 setMethod(
   "calculateUsage",
@@ -168,15 +195,27 @@ setMethod(
   function(
     object,
     ...,
+    target = c("ptm", "variant"),
     usage_level = c("histone", "histone_family", "histone_group"),
     deconv = "mods_ref",
     sep = ";",
     group = "histone_group"
   ) {
-    object |>
-      normalizeUsage(usage_level = usage_level, ...) |>
-      deconvolute(deconv = deconv, sep = sep, group = group) |>
-      # consider MsCoreUtils::medianPolish() if fcol = histone?; this is faster and should perform similarly here
-      QFeatures::aggregateFeatures(fcol = "hptm", ...)
+    target <- match.arg(target)
+    usage_level <- match.arg(usage_level)
+
+    object <- object |>
+      normalizeUsage(usage_level = usage_level, ...)
+    if (target == "ptm") {
+      object <- object |>
+        deconvolute(deconv = deconv, sep = sep, group = group) |>
+        # consider MsCoreUtils::medianPolish() if fcol = histone?; this is faster and should perform similarly here
+        QFeatures::aggregateFeatures(fcol = "hptm", ...)
+    } else {
+      object <- object |>
+        QFeatures::aggregateFeatures(fcol = "histone_group", ...)
+    }
+
+    return(object)
   }
 )

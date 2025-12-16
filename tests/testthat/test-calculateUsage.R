@@ -72,6 +72,44 @@ test_that("calculateUsage,SE works with different usage_levels", {
   expect_equal(as.vector(assay(res_se)["H4_V1#K20Ac", ]), rep(0, 7))
 })
 
+test_that("calculateUsage,SE works for target = 'variant'", {
+  mock_se <- new_mock_se(nrow = 3)
+  rowData(mock_se)$histone_group <- c("G1", "G1", "G2")
+  rowData(mock_se)$histone <- TRUE # for usage_level="histone" normalization
+
+  # Execution
+  res_se <- calculateUsage(
+    mock_se,
+    target = "variant",
+    usage_level = "histone",
+    fun = colMeans, # Simplify aggregation for verification
+    na.rm = TRUE
+  )
+
+  expect_s4_class(res_se, "SummarizedExperiment")
+
+  # Check Dimensions: 2 groups -> 2 rows
+  expect_equal(nrow(res_se), 2)
+  expect_equal(sort(rownames(res_se)), c("G1", "G2"))
+
+  # Check Logic:
+  # 1. Normalization happens first (subtract mean of all)
+  # 2. Deconvolution is SKIPPED
+  # 3. Aggregation happens by histone_group
+
+  vals <- assay(mock_se)
+  norm_factors <- colMeans(vals)
+  norm_vals <- sweep(vals, 2, norm_factors, "-")
+
+  # Expected value for G1 (mean of first two rows)
+  expected_g1 <- colMeans(norm_vals[1:2, , drop = FALSE])
+  # Expected value for G2 (value of third row)
+  expected_g2 <- norm_vals[3, ]
+
+  expect_equal(assay(res_se)["G1", ], expected_g1)
+  expect_equal(assay(res_se)["G2", ], expected_g2)
+})
+
 test_that("calculateUsage,SE passes arguments to internal functions", {
   mock_se <- new_mock_se(nrow = 2)
   rowData(mock_se)$alt_mods <- c("ModA|ModB", "ModA|ModB")
@@ -160,6 +198,41 @@ test_that("calculateUsage,QFeatures works with custom names and multiple assays"
   expect_true("ptm2" %in% names(res_qf))
 
   expect_equal(nrow(res_qf[["ptm1"]]), 2)
+})
+
+test_that("calculateUsage,QFeatures works for target = 'variant'", {
+  mock_qf <- new_mock_qf()
+  # Ensure assay1 has necessary columns
+  rowData(mock_qf[["assay1"]])$histone <- TRUE
+  rowData(mock_qf[["assay1"]])$histone_group <- c(rep("G1", 3), rep("G2", 3))
+
+  res_qf <- suppressWarnings(suppressMessages(calculateUsage(
+    mock_qf,
+    i = "assay1",
+    target = "variant",
+    usage_level = "histone"
+  )))
+
+  # Check Assays
+  # Should have:
+  # 1. "assay1" (Original)
+  # 2. "assay1NormHistone" (Normalized)
+  # 3. "variant" (Result, default name)
+  # Should NOT have: "...Deconv" assay
+
+  expect_true("assay1NormHistone" %in% names(res_qf))
+  expect_true("variant" %in% names(res_qf))
+  expect_false("assay1NormHistoneDeconv" %in% names(res_qf))
+
+  # Check Dimensions
+  # 2 groups (G1, G2) -> 2 rows in final assay
+  expect_equal(nrow(res_qf[["variant"]]), 2)
+
+  # Check Linkage
+  # The 'variant' assay should be linked directly to 'assay1NormHistone'
+  # skipping the deconvolution step
+  link <- assayLink(res_qf, "variant")
+  expect_equal(link@from, "assay1NormHistone")
 })
 
 test_that("calculateUsage,QFeatures passes arguments to inner methods", {
