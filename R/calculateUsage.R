@@ -14,7 +14,7 @@
 #'    calculated, i.e., what is considered the "parent protein". Must be one of:
 #'   * `"histone"` = the total histone abundance (default)
 #'   * `"histone_family"` = the total family abundance
-#'   * `"histone_group"` = the histone group abundance
+#'   * `"histone_group"` = the histone group abundance, this should not be used if `target = "variant"`
 #' @param deconv A `character(1)` pointing to the rowData column defining the
 #'   features to deconvolute; for example, hPTMs after alignment mapping.
 #' @param sep The `character(1)` used to separate different hPTMs/... in the

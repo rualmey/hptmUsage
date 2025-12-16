@@ -53,7 +53,7 @@ calculated, i.e., what is considered the "parent protein". Must be one of:
 \itemize{
 \item \code{"histone"} = the total histone abundance (default)
 \item \code{"histone_family"} = the total family abundance
-\item \code{"histone_group"} = the histone group abundance
+\item \code{"histone_group"} = the histone group abundance, this should not be used if \code{target = "variant"}
 }}
 
 \item{deconv}{A \code{character(1)} pointing to the rowData column defining the
