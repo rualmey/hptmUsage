@@ -13,26 +13,46 @@ generateReport(
   mod_params = list(),
   contaminant_params = list(),
   usage_params = list(),
+  variant_usage_level = c("histone", "histone_family"),
+  reference_levels = NULL,
+  design_formula = c(factor = "~ 0 + group"),
   ...
 )
 }
 \arguments{
 \item{dataset}{The hPTM dataset generated using \code{\link[=readProgenesis]{readProgenesis()}}.}
 
-\item{output_dir}{The path where the final report should be saved (e.g., "./output").}
+\item{output_dir}{The path where the final report should be saved (e.g.,
+"./output").}
 
-\item{overwrite}{If a report with the same name already exists at \code{output_dir},
-should it be overwritten (\code{logical(1)}?}
+\item{overwrite}{If a report with the same name already exists at
+\code{output_dir}, should it be overwritten (\code{logical(1)}?}
 
-\item{histone_params}{A \code{list()} of arguments passed to \code{\link[=histonesFromUniprot]{histonesFromUniprot()}}.}
+\item{histone_params}{A \code{list()} of arguments passed to
+\code{\link[=histonesFromUniprot]{histonesFromUniprot()}}.}
 
-\item{msa_params}{A \code{list()} of arguments passed to \code{\link[=alignHistones]{alignHistones()}} (except for "unaligned_histones").}
+\item{msa_params}{A \code{list()} of arguments passed to \code{\link[=alignHistones]{alignHistones()}} (except
+for "unaligned_histones").}
 
-\item{mod_params}{A \code{list()} of arguments passed to \code{\link[=processMods]{processMods()}} (except for "object", "msa", or "i").}
+\item{mod_params}{A \code{list()} of arguments passed to \code{\link[=processMods]{processMods()}} (except
+for "object", "msa", or "i").}
 
-\item{contaminant_params}{A \code{list()} of arguments passed to \code{\link[=tagContaminants]{tagContaminants()}} (except for "object" or "i").}
+\item{contaminant_params}{A \code{list()} of arguments passed to
+\code{\link[=tagContaminants]{tagContaminants()}} (except for "object" or "i").}
 
-\item{usage_params}{A \code{list()} of arguments passed to \code{\link[=calculateUsage]{calculateUsage()}} (except for "object", "i", "name", or "target").}
+\item{usage_params}{A \code{list()} of arguments passed to \code{\link[=calculateUsage]{calculateUsage()}}
+(except for "object", "i", "name", or "target").}
+
+\item{variant_usage_level}{A \code{character(1)} specifying the \code{usage_level}
+(see \code{\link[=calculateUsage]{calculateUsage()}}) for variant usage calculation, i.e., one of
+"histone" or "histone_family".}
+
+\item{reference_levels}{Optional, a named collection of factors (as present
+in the colData) and their reference level, e.g., \code{c(group = "wild_type")}.}
+
+\item{design_formula}{A named \code{character()} of design formula(e), e.g., the
+default \code{c(factor = "~ 0 + group")}. The experimental design matrix will
+only be shown for models that contain "factor" in the name.}
 
 \item{...}{Additional parameters passed to \code{\link[quarto:quarto_render]{quarto::quarto_render()}}.}
 }

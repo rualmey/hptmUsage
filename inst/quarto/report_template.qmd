@@ -9,6 +9,10 @@ params:
   contaminant_params: !expr list()
   usage_params: !expr list()
   variant_usage_level: "histone"
+  reference_levels: !expr NULL
+  reference_levels_names: !expr NULL
+  design_formula: "~ 0 + group"
+  design_formula_names: "factor"
 ---
 
 ## Overview
@@ -237,7 +241,7 @@ Feature abundance distributions should overlap well and the variance should be m
 Oftentimes we see a hump at lower abundances, which mostly stems from false identification transfer between runs during feature alignment in Progenesis QIP;
 therefore, the ID transfer of important low abundance features should always be manually verified.
 
-## Filtering
+### Filtering
 
 Now we can drop outlier samples and filter low quality features, i.e., those possibly from contaminants and those with high missingness.
 
@@ -278,7 +282,7 @@ rowData(pe[rowData(pe[["precursor"]])$histone, ][["precursor"]]) |>
 This leaves us with `r nrow(pe[["precursor"]])` observations (`r rows_before_filter - nrow(pe[["precursor"]])`
 rows dropped).
 
-## Exploratory data analysis
+### Exploratory data analysis
 
 Peptide-level MDS plots, color-coded according to the metadata, will show the level of similarity between samples.
 Look for any obvious clustering or other trends such as from loading differences. Do note that this is based on all peptide data, including from co-extracts.
@@ -320,7 +324,7 @@ for (fill_col in tabs) {
 }
 ```
 
-## Co-extracts
+### Co-extracts
 
 We can already aggregate the co-extracts to the protein level for later testing.
 
@@ -351,7 +355,7 @@ assay(pe[["co-extracts"]]) |>
   readr::write_csv(file = fs::path(quarto::get_running_project_root(), "/out/data/coextract_assay", ext = "csv"))
 ```
 
-## Usage calculation
+### Usage calculation
 
 First, check if the summarized abundance of histone families is consistent across all samples.
 Biologically, this should be true most of the time, except the ratio of H1 to the nucleosome has been found to change, and technical artifacts can break this assumption.
@@ -502,9 +506,41 @@ plot(pe)
 
 ### Model building
 
-Start by creating the model formula and relevant contrasts, then proceed with differential usage testing.
+Start by creating the model formula(e) and relevant contrasts, then proceed with differential usage testing.
+For clarification on experimental design matrices, see this excellent guide by Law et al.^[Law, C.W., Zeglinski, K., Dong, X., Alhamdoosh, M., Smyth, G.K. & Ritchie, M.E. (2020). A guide to creating design matrices for gene expression experiments. F1000Res. 2020 Dec 10;9:1444. https://doi.org/10.12688/f1000research.27893.]
 
-TODO The model will be a "means model" with cell status + treatment as a single factor of four levels.
+```{r}
+#| label: fig-designmat
+#| fig-cap: "Visualization of the design matrix."
+#| layout-ncol: 1
+
+# drop runs not in the "Include" column of colData, e.g., QC runs or outliers
+pe <- pe[, pe$include]
+colData(pe) <- droplevels(colData(pe))
+
+# relevel factors as needed
+# TODO
+stopifnot("'reference_levels' should be a named vector" = length(params$reference_levels) == length(params$reference_levels_names))
+for (i in seq_along(params$reference_levels)) {
+  colData(pe)[[params$reference_levels_names[[i]]]] <- forcats::fct_relevel(colData(pe)[[params$reference_levels_names[[i]]]], params$reference_levels[[i]])
+}
+# purrr::walk2(params$reference_levels, params$reference_levels_names, function(x, y) {
+#   colData(pe)[[y]] <- forcats::fct_relevel(colData(pe)[[y]], x)
+# })
+
+# create design matrices
+model_designs <- lapply(
+  params$design_formula,
+  \(x) ExploreModelMatrix::VisualizeDesign(colData(pe), designFormula = x, textSizeFitted = 2)
+)
+names(model_designs) <- params$design_formula_names
+# show the experimental design matrix
+model_designs[grepl("factor", names(model_designs), fixed = TRUE)] |>
+  purrr::map("plotlist") |>
+  purrr::walk(print)
+```
+
+## Saving the results
 
 ```{r}
 #| label: chunk-results

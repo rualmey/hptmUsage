@@ -24,6 +24,11 @@
 #' @param variant_usage_level A `character(1)` specifying the `usage_level`
 #'   (see [calculateUsage()]) for variant usage calculation, i.e., one of
 #'   "histone" or "histone_family".
+#' @param reference_levels Optional, a named collection of factors (as present
+#'   in the colData) and their reference level, e.g., `c(group = "wild_type")`.
+#' @param design_formula A named `character()` of design formula(e), e.g., the
+#'   default `c(factor = "~ 0 + group")`. The experimental design matrix will
+#'   only be shown for models that contain "factor" in the name.
 #' @param ... Additional parameters passed to [quarto::quarto_render()].
 #' @returns Invisibly returns the final dataset, including aggregated hPTM assays, for example.
 #' @export
@@ -45,6 +50,8 @@ generateReport <- function(
   contaminant_params = list(),
   usage_params = list(),
   variant_usage_level = c("histone", "histone_family"),
+  reference_levels = NULL,
+  design_formula = c(factor = "~ 0 + group"),
   ...
 ) {
   # TODO check params
@@ -87,7 +94,11 @@ generateReport <- function(
           mod_params = mod_params,
           contaminant_params = contaminant_params,
           usage_params = usage_params,
-          variant_usage_level = variant_usage_level
+          variant_usage_level = variant_usage_level,
+          reference_levels = reference_levels,
+          reference_levels_names = names(reference_levels),
+          design_formula = design_formula,
+          design_formula_names = names(design_formula)
           # TODO,
         ),
         ...
