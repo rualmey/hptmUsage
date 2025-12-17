@@ -6,23 +6,55 @@
 #' @details
 #' TODO
 #'
-#' @param dataset A dataset object produced by your package (e.g., from `deconvolute()`).
-#' @param output_file The path where the final report should be saved (e.g., "analysis_report.html").
-#' @param contrast A string describing the contrast (passed to report parameters).
-#' @param ... Additional parameters passed to `quarto::quarto_render`.
-#' @returns The dataset, invisible
+#' @param dataset The hPTM dataset generated using [hptmUsage::readProgenesis()].
+#' @param output_dir The path where the final report should be saved (e.g.,
+#'   "./output").
+#' @param overwrite If a report with the same name already exists at
+#'   `output_dir`, should it be overwritten (`logical(1)`?
+#' @param histone_params A `list()` of arguments passed to
+#'   [histonesFromUniprot()].
+#' @param msa_params A `list()` of arguments passed to [alignHistones()] (except
+#'   for "unaligned_histones").
+#' @param mod_params A `list()` of arguments passed to [processMods()] (except
+#'   for "object", "msa", or "i").
+#' @param contaminant_params A `list()` of arguments passed to
+#'   [tagContaminants()] (except for "object" or "i").
+#' @param usage_params A `list()` of arguments passed to [calculateUsage()]
+#'   (except for "object", "i", "name", or "target").
+#' @param variant_usage_level A `character(1)` specifying the `usage_level`
+#'   (see [calculateUsage()]) for variant usage calculation, i.e., one of
+#'   "histone" or "histone_family".
+#' @param ... Additional parameters passed to [quarto::quarto_render()].
+#' @returns Invisibly returns the final dataset, including aggregated hPTM assays, for example.
 #' @export
 #' @examples
 #' \dontrun{
 #' # TODO
+#' # Usage level
+#' ...
 #'}
 generateReport <- function(
   dataset,
   output_dir,
-  overwrite = TRUE,
-  # TODO = params,
+  overwrite = FALSE,
+  # TODO
+  # preprocessing
+  histone_params = list(),
+  msa_params = list(),
+  mod_params = list(),
+  contaminant_params = list(),
+  usage_params = list(),
+  variant_usage_level = c("histone", "histone_family"),
   ...
 ) {
+  # TODO check params
+  .paramcheck(histone_params, hptmUsage::histonesFromUniprot)
+  .paramcheck(msa_params, hptmUsage::alignHistones, exclusions = "unaligned_histones")
+  .paramcheck(mod_params, hptmUsage::processMods, exclusions = c("object", "msa", "i"))
+  .paramcheck(contaminant_params, hptmUsage::tagContaminants, exclusions = c("object", "i"))
+  .paramcheck(usage_params, hptmUsage::calculateUsage, exclusions = c("object", "i", "name", "target"))
+  variant_usage_level <- match.arg(variant_usage_level)
+
   # quarto needs to be available
   quarto::quarto_available(min = "1.8", max = NULL, error = TRUE)
 
@@ -31,6 +63,7 @@ generateReport <- function(
   stopifnot("Report templates not found in package. Try reinstalling the package." = resource_path != "")
   temp_dir <- withr::local_tempdir(pattern = "hptm_report_")
   fs::dir_copy(path = resource_path, new_path = temp_dir, overwrite = TRUE)
+
   # serialize dataset first instead of passing to quarto::quarto_render() as this should be safer
   ds_path <- fs::path(temp_dir, "input_data", ext = "rds")
   saveRDS(dataset, ds_path)
@@ -48,8 +81,14 @@ generateReport <- function(
         output_file = report_basename,
         execute_params = list(
           # passthrough of function parameters, see template YAML header
-          ds_path = ds_path
-          # TODO = params,
+          ds_path = ds_path,
+          histone_params = histone_params,
+          msa_params = msa_params,
+          mod_params = mod_params,
+          contaminant_params = contaminant_params,
+          usage_params = usage_params,
+          variant_usage_level = variant_usage_level
+          # TODO,
         ),
         ...
       )
@@ -71,4 +110,33 @@ generateReport <- function(
   # the processed QFeatures object was serialized at the end of the quarto_render call
   dataset <- readRDS(fs::path(temp_dir, "ds_processed", ext = "rds"))
   return(invisible(dataset))
+}
+
+.paramcheck <- function(param, fun, exclusions = NULL) {
+  wrong_names <- names(param)[!names(param) %in% methods::formalArgs(fun)]
+  if (length(wrong_names) > 0) {
+    stop(
+      paste0(
+        "Invalid argument",
+        if (length(wrong_names) > 1) "s" else "",
+        " in '",
+        deparse(substitute(param)),
+        "': ",
+        paste(wrong_names, collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
+  excluded_names <- names(param)[names(param) %in% exclusions]
+  if (length(excluded_names) > 0) {
+    stop(
+      paste0(
+        "Argument",
+        if (length(excluded_names) > 1) "s" else "",
+        " not allowed: ",
+        paste(excluded_names, collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
 }

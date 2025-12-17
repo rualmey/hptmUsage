@@ -4,19 +4,40 @@
 \alias{generateReport}
 \title{Generate Differential Usage Analysis Report}
 \usage{
-generateReport(data, output_file, contrast = "Comparison", ...)
+generateReport(
+  dataset,
+  output_dir,
+  overwrite = FALSE,
+  histone_params = list(),
+  msa_params = list(),
+  mod_params = list(),
+  contaminant_params = list(),
+  usage_params = list(),
+  ...
+)
 }
 \arguments{
-\item{data}{A data object produced by your package (e.g., from \code{deconvolute()}).}
+\item{dataset}{The hPTM dataset generated using \code{\link[=readProgenesis]{readProgenesis()}}.}
 
-\item{output_file}{The path where the final report should be saved (e.g., "analysis_report.html").}
+\item{output_dir}{The path where the final report should be saved (e.g., "./output").}
 
-\item{contrast}{A string describing the contrast (passed to report parameters).}
+\item{overwrite}{If a report with the same name already exists at \code{output_dir},
+should it be overwritten (\code{logical(1)}?}
 
-\item{...}{Additional parameters passed to \code{quarto::quarto_render}.}
+\item{histone_params}{A \code{list()} of arguments passed to \code{\link[=histonesFromUniprot]{histonesFromUniprot()}}.}
+
+\item{msa_params}{A \code{list()} of arguments passed to \code{\link[=alignHistones]{alignHistones()}} (except for "unaligned_histones").}
+
+\item{mod_params}{A \code{list()} of arguments passed to \code{\link[=processMods]{processMods()}} (except for "object", "msa", or "i").}
+
+\item{contaminant_params}{A \code{list()} of arguments passed to \code{\link[=tagContaminants]{tagContaminants()}} (except for "object" or "i").}
+
+\item{usage_params}{A \code{list()} of arguments passed to \code{\link[=calculateUsage]{calculateUsage()}} (except for "object", "i", "name", or "target").}
+
+\item{...}{Additional parameters passed to \code{\link[quarto:quarto_render]{quarto::quarto_render()}}.}
 }
 \value{
-The dataset
+Invisibly returns the final dataset, including aggregated hPTM assays, for example.
 }
 \description{
 TODO
@@ -27,5 +48,7 @@ TODO
 \examples{
 \dontrun{
 # TODO
+# Usage level
+...
 }
 }

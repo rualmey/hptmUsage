@@ -1,0 +1,516 @@
+---
+title: "Differential hPTM Usage"
+format: html
+params:
+  ds_path: "input_data.rds"
+  histone_params: !expr list()
+  msa_params: !expr list()
+  mod_params: !expr list()
+  contaminant_params: !expr list()
+  usage_params: !expr list()
+  variant_usage_level: "histone"
+---
+
+## Overview
+
+This workflow is an adaptation of msqrob2PTM^[Demeulemeester, N., Gébelin, M., Caldi Gomes, L., Lingor, P., Carapito, C., Martens, L., & Clement, L. (2024). msqrob2PTM: Differential Abundance and Differential Usage Analysis of MS-Based Proteomics Data at the Posttranslational Modification and Peptidoform Level. Molecular & Cellular Proteomics, 23(2), 100708. https://doi.org/10.1016/j.mcpro.2023.100708].
+In brief, data is imported, preprocessed, normalized (to allow usage calculation), and tested for differential usage of histone variants, histone peptidoforms, and hPTMs.
+The dataset will be parsed in @sec-parsing, preprocessed in @sec-preprocessing, and differential usage analysis is then performed in @sec-da.
+
+We start by importing the relevant packages.
+
+```{r}
+#| label: chunk-libraries
+#| output: false
+
+# tidyverse
+library(dplyr)
+library(purrr)
+library(tibble)
+library(stringr)
+library(forcats)
+# proteomics
+library(QFeatures)
+library(msqrob2)
+# plotting
+library(ggplot2)
+library(ggbreak)
+# hPTM usage
+# TODO library(hptmUsage)
+devtools::load_all(path = "/workspaces/hptmUsage")
+```
+
+## Data parsing {#sec-parsing}
+
+The hPTM dataset (e.g., a peptide ion export, not deconvoluted, including all identified features and properties from Progenesis QIP) was imported using the `hptmUsage::readProgenesis()` function and metadata was added (manually or using the `hptmUsage::replaceColData() function).
+This data is contained in a QFeatures^[Gatto, L., & Vanderaa, C. (2024). QFeatures: Quantitative features for mass spectrometry data. https://doi.org/10.18129/B9.bioc.QFeatures] object, which will store all information relevant to the dataset from here on.
+
+```{r}
+#| label: tbl-import
+#| panel: tabset
+#| results: asis
+#| echo: false
+#| column: page-right
+
+pe <- readRDS(params$ds_path)
+
+# print data embedded in the QFeatures object as sanity check
+cat("\n### Precursor metadata\n\n")
+as_tibble(rowData(pe[["precursorRaw"]]))
+cat("\n### Sample metadata\n\n")
+as_tibble(colData(pe))
+```
+
+### Alignment and hPTM processing
+
+Now, we retrieve the relevant histone sequences and add them to their corresponding histone family multiple sequence alignment (MSA) as retrieved from HistoneDB 2.0^[Draizen, E. J.; Shaytan, A. K.; Mariño-Ramírez, L.; Talbert, P. B.; Landsman, D.; Panchenko, A. R. HistoneDB 2.0: A Histone Database with Variants—an Integrated Resource to Explore Histones and Their Variants. Database (Oxford) 2016, 2016, baw014. https://doi.org/10.1093/database/baw014.].
+Then, we process all identified peptidoforms to map them to their relevant histone family, clean up hPTM annotation, and **map hPTMs to their "canonical location"** (by default), i.e., the corresponding amino acid index of the canonical sequence within the MSA.
+
+```{r}
+#| label: chunk-alignment
+
+histones <- do.call(histonesFromUniprot, params$histone_params)
+histones <- do.call(alignHistones, rlang::list2(unaligned_histones = histones, !!!params$msa_params))
+pe <- matchHistones(pe, histones$unaligned, 1, progress = FALSE)
+pe <- do.call(processMods, rlang::list2(object = pe, msa = histones, i = 1, !!!params$mod_params))
+```
+
+```{css, echo = FALSE}
+/* custom css class for scrollable container */
+.scrolling-msa {
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+}
+
+/* override quarto (= bootstrap) default shrinking */
+.scrolling-msa img {
+  max-width: none !important;
+  width: auto;
+}
+```
+
+The following MSA plots can be used as a visual reference for hPTM indexes.
+
+::: {.column-page}
+
+:::: {.panel-tabset}
+
+```{r}
+#| results: asis
+#| fig-height: 2
+#| fig-width: 15
+#| fig-dpi: 600
+#| out-width: 200%
+#| warning: false
+#| message: false
+
+if (is.null(params$histone_params$histone_families)) {
+  histone_families <- c("H1", "H2A", "H2B", "H3", "H4")
+} else {
+  histone_families <- params$histone_params$histone_families
+}
+
+# inspect the alignment of all families in tabset? Visualize the parsed results
+for (histone_family in histone_families) {
+  # quarto programmatic tabset
+  cat("#### ", histone_family, " MSA", "\n\n", sep = "")
+  # MSA plot
+  p <- ggmsa::ggmsa(
+    c(histones$msa[[histone_family]], histones$msa_ref[[histone_family]]),
+    char_width = .5,
+    seq_name = TRUE,
+    consensus_views = TRUE,
+    use_dot = FALSE,
+    disagreement = FALSE,
+    ignore_gaps = FALSE,
+    ref = names(histones$msa_ref[[histone_family]])
+  ) +
+    theme(axis.text = element_text(size = 1000 / width(histones$msa[[histone_family]])[[1]]))
+  # plot in scrollable container
+  cat("\n\n::::: {.scrolling-msa}\n\n")
+  print(p)
+  cat("\n\n:::::\n\n")
+  # TODO save plot
+  fs::dir_create(fs::path(quarto::get_running_project_root(), "/out/floats/"))
+  # ggplot2::ggsave(fs::path(quarto::get_running_project_root(), "/out/floats/fig-", histone_family, "-msa", ext = "png"), dpi = 300, plot = p)
+  # end quarto programmatic tabset
+  cat("\n\n")
+}
+```
+
+::::
+
+:::
+
+## Data preprocessing {#sec-preprocessing}
+
+### QC
+
+Inspect the peptide loading consistency and histone extraction efficiency.
+Ideally, both histone extraction efficiency (increasing along the main diagonal from top left to bottom right) and histone loading (increasing along the x-axis) should be mostly constant and independent of the biological condition.
+If a batch effect is visible here, consider adding it to the model during differential usage testing.
+
+```{r}
+#| label: fig-extraction
+#| fig-cap: "Evaluation of histone loading per extraction batch"
+#| warning: false
+#| message: false
+
+# sample loading
+nonhistone_assay <- assay(pe[!rowData(pe[["precursorRaw"]])$histone, ], "precursorRaw")
+median_raw_coextr_abundance <- colMedians(log1p(nonhistone_assay), na.rm = TRUE)
+colData(pe)[names(median_raw_coextr_abundance), "median_raw_coextr_abundance"] <- median_raw_coextr_abundance
+# histone loading
+histone_assay <- assay(pe[rowData(pe[["precursorRaw"]])$histone, ], "precursorRaw")
+median_raw_histone_abundance <- colMedians(log1p(histone_assay), na.rm = TRUE)
+colData(pe)[names(median_raw_histone_abundance), "median_raw_histone_abundance"] <- median_raw_histone_abundance
+# extraction efficiency
+pe$extraction_efficiency <- pe$median_raw_histone_abundance / pe$median_raw_coextr_abundance
+# visualize loading consistency / histone extraction efficiency
+p <- ggplot(
+  colData(pe[, !grepl("QC_", pe$quantCols)]),
+  aes(x = median_raw_histone_abundance, y = median_raw_coextr_abundance, color = group)
+) +
+  geom_point(aes(shape = outlier, size = extraction_efficiency)) +
+  geom_smooth(aes(color = NULL), se = FALSE) +
+  geom_abline(intercept = 0, slope = 1) +
+  scale_size(range = c(2, 3))
+p <- ggExtra::ggMarginal(
+  p,
+  mapping = aes(fill = colData(pe[, !grepl("QC_", pe$quantCols)])$group),
+  position = "stack",
+  alpha = .6
+)
+grid::grid.newpage()
+grid::grid.draw(p)
+```
+
+### Global normalization
+
+Normalization of the samples is performed in two steps:
+
+1. Removal of technical variation, such as from sample loading differences, using variance stabilization (VSN)^[Huber, W., von Heydebreck, A., Sültmann, H., Poustka, A., & Vingron, M. (2002). Variance stabilization applied to microarray data calibration and to the quantification of differential expression. Bioinformatics, 18(suppl_1), S96–S104. https://doi.org/10.1093/bioinformatics/18.suppl_1.S96].
+This normalizes all samples based on the abundance distribution of all precursors
+2. Correction of nucleosome (or family/variant) abundance differences to allow differential **usage** analysis of histone variants, peptidoforms, and PTMs.
+
+Here, we start with the global VSN normalization and evaluate the results.
+
+::: {.column-page}
+
+```{r}
+#| label: fig-vsn
+#| fig-cap: "Evaluation of global normalization"
+#| fig-subcap:
+#|   - "MeanSdPlot for quality check of VSN normalization: the red line should be approximately horizontal"
+#|   - "Density plot of normalized precursor abundances per sample, coloured by extraction batch"
+#|   - "Boxplot of normalized precursor abundances per sample, coloured by extraction batch"
+#| layout-ncol: 3
+#| message: false
+#| warning: false
+
+# VSN requires the non-log transformed values as it glog transforms the data
+pe <- zeroIsNA(pe, i = "precursorRaw") |>
+  normalize(
+    i = "precursorRaw",
+    method = "vsn",
+    name = "precursor",
+    verbose = FALSE,
+    # while the below decreases the number of features used, it is more robust
+    lts.quantile = .5,
+  )
+
+# normalized histone abundances
+histone_assay <- assay(pe[rowData(pe[["precursor"]])$histone, ], "precursor")
+median_histone_abundance <- colMedians(histone_assay, na.rm = TRUE)
+colData(pe)[names(median_histone_abundance), "median_histone_abundance"] <- median_histone_abundance
+
+# visualize
+vsn::meanSdPlot(assay(pe[["precursor"]]), ranks = TRUE)
+limma::plotDensities(assay(pe[["precursor"]]), group = pe$group, legend = "topright")
+boxplot(assay(pe[["precursor"]]), col = pe$group, ylab = "Intensity")
+```
+
+:::
+
+Feature abundance distributions should overlap well and the variance should be mostly stable across the means.
+Oftentimes we see a hump at lower abundances, which mostly stems from false identification transfer between runs during feature alignment in Progenesis QIP;
+therefore, the ID transfer of important low abundance features should always be manually verified.
+
+## Filtering
+
+Now we can drop outlier samples and filter low quality features, i.e., those possibly from contaminants and those with high missingness.
+
+```{r}
+#| label: fig-families
+#| fig-cap: "Number of unique precursors (peptide + charge + modifications if any) quantified per histone family"
+#| message: false
+
+# drop outlier samples
+pe <- pe[, !pe$outlier]
+# drop contaminant features
+rows_before_filter <- nrow(pe[["precursor"]])
+pe <- do.call(tagContaminants, rlang::list2(object = pe, i = "precursor", !!!params$contaminant_params)) |>
+  filterFeatures(~ !contaminant, keep = TRUE)
+# remove high missing features
+# at least 3 samples should have the precursor quantified + at least 50% across
+rowData(pe[["precursor"]]) <- rowData(pe[["precursor"]]) |>
+  cbind(nNA(pe, i = "precursor")$nNArows[c("nNA", "pNA")])
+pe <- pe |>
+  filterFeatures(
+    VariableFilter("nNA", ncols(pe)[["precursor"]] - 3, "<="),
+    i = "precursor",
+    keep = TRUE
+  ) |>
+  filterFeatures(~ pNA < .5, i = "precursor", keep = TRUE)
+
+# plot remaining
+rowData(pe[rowData(pe[["precursor"]])$histone, ][["precursor"]]) |>
+  ggplot(aes(
+    x = histone_family,
+    fill = !is.na(mods_pep) &
+      !sapply(str_split(mods_pep, ";"), \(x) all(grepl("Unmod", x)))
+  )) +
+  geom_bar() +
+  labs(fill = "Modified")
+```
+
+This leaves us with `r nrow(pe[["precursor"]])` observations (`r rows_before_filter - nrow(pe[["precursor"]])`
+rows dropped).
+
+## Exploratory data analysis
+
+Peptide-level MDS plots, color-coded according to the metadata, will show the level of similarity between samples.
+Look for any obvious clustering or other trends such as from loading differences. Do note that this is based on all peptide data, including from co-extracts.
+
+```{r}
+#| label: chunk-plotlyinit
+#| include: false
+#| echo: false
+
+htmltools::tagList(plotly::plot_ly()) # initialize plot_ly for tabsets
+```
+
+```{r}
+#| panel: tabset
+#| results: asis
+
+# MDS calculations
+mds_assay <- limma::plotMDS(assay(pe[["precursor"]]), plot = FALSE) |>
+  _[c("x", "y", "var.explained")] |>
+  data.frame() |>
+  cbind(colData(pe))
+# plot
+tabs <- colnames(colData(pe))[!colnames(colData(pe)) %in% c("outlier", "quantCols", "original_name")]
+for (fill_col in tabs) {
+  cat("#### ", fill_col, "\n\n", sep = "")
+  p <- ggplot(mds_assay, mapping = aes(
+    x = x, y = y, fill = .data[[fill_col]],
+    size = pe$median_histone_abundance, annotation = rownames(mds_assay)
+  )) +
+    geom_point(colour = "black", shape = 21) +
+    theme_bw() +
+    xlab(paste("Leading logFC dim 1 (", round(100 * mds_assay$var.explained[[1]], 2), "%)", sep = "")) +
+    ylab(paste("Leading logFC dim 2 (", round(100 * mds_assay$var.explained[[2]], 2), "%)", sep = ""))
+  p |>
+    plotly::ggplotly() |>
+    htmltools::tagList() |>
+    print()
+  cat("\n\n")
+}
+```
+
+## Co-extracts
+
+We can already aggregate the co-extracts to the protein level for later testing.
+
+```{r}
+#| label: chunk-protein-agg
+#| message: false
+#| warning: false
+
+# select co-extracts and aggregate to the protein level
+pe <- pe |>
+  addAssay(
+    subset(pe[["precursor"]], subset = !histone),
+    "precursorCoextr"
+  ) |>
+  addAssayLink("precursor", "precursorCoextr", "feature_number", "feature_number") |>
+  aggregateFeatures(
+    i = "precursorCoextr",
+    fcol = "protein",
+    name = "co-extracts",
+    fun = MsCoreUtils::robustSummary
+  )
+# extract protein data
+fs::dir_create(fs::path(quarto::get_running_project_root(), "/out/data/"))
+assay(pe[["co-extracts"]]) |>
+  signif() |>
+  as_tibble() |>
+  mutate(protein = rownames(assay(pe[["co-extracts"]])), .before = 1) |>
+  readr::write_csv(file = fs::path(quarto::get_running_project_root(), "/out/data/coextract_assay", ext = "csv"))
+```
+
+## Usage calculation
+
+First, check if the summarized abundance of histone families is consistent across all samples.
+Biologically, this should be true most of the time, except the ratio of H1 to the nucleosome has been found to change, and technical artifacts can break this assumption.
+This will help determine whether to do the "variant-agnostic" usage normalization against all histones together or against histone families (see the `hptmUsage::generateReport()` argument of `usage_params`).
+If the ratio's between histone families are mostly consistent, then the total summed histone abundance should give us a robust enough backbone for usage normalization.
+
+```{r}
+#| label: fig-family-ratio
+#| fig-cap: "The ratio's of histone family abundances, summed from all corresponding peptidoforms."
+#| message: false
+#| warning: false
+
+# subset to histones
+pe <- pe |>
+  addAssay(
+    subset(pe[["precursor"]], subset = histone),
+    "precursorHistone"
+  ) |> # only histones after feature editing
+  addAssayLink("precursor", "precursorHistone", "feature_number", "feature_number")
+
+# QC check for nucleosome composition
+hist_abundance_qc <- pe |>
+  aggregateFeatures(
+    i = "precursorHistone",
+    fcol = "histone_family",
+    name = "histoneFamily",
+    fun = MsCoreUtils::robustSummary,
+    maxit = 50
+  ) |>
+  assay("histoneFamily") |>
+  reshape2::melt() |>
+  ggplot2::ggplot(aes(x = Var2, y = value, fill = Var1)) +
+  geom_bar(position = "fill", stat = "identity", color = "black", linewidth = .1) +
+  theme_classic() +
+  theme(axis.ticks.x = element_blank()) +
+  scale_fill_manual(values = alpha(c("#4c566aff", "#d08770ff", "#5e81acff", "#a3be8cff", "#b48eadff"))) +
+  scale_y_continuous(labels = scales::percent) +
+  coord_cartesian(expand = FALSE) +
+  labs(x = "Run", y = "Histone Abundance (%)", fill = "Histone\nFamily")
+# ggsave("./out/floats/fig-family-abundance.png",
+#   plot = hist_abundance_qc, width = 3.6, height = 2.5, units = "in", dpi = 600
+# ) TODO
+hist_abundance_qc
+```
+
+Now calculate hPTM usage.
+
+```{r}
+#| label: chunk-usage-calculation
+#| message: false
+#| warning: false
+
+pe <- do.call(calculateUsage, rlang::list2(object = pe, i = "precursorHistone", name = "ptm", !!!params$usage_params))
+pe <- do.call(calculateUsage, rlang::list2(object = pe, i = "precursorHistone", name = "variant", target = "variant", params$variant_usage_level))
+
+# export the hPTM usage data
+assay(pe[["ptm"]]) |>
+  signif() |>
+  as_tibble() |>
+  mutate(hPTM = rowData(pe[["ptm"]])$hptm, .before = 1) |>
+  readr::write_csv(file = fs::path(quarto::get_running_project_root(), "/out/data/hptm_assay", ext = "csv"))
+assay(pe[["variant"]]) |>
+  signif() |>
+  as_tibble() |>
+  mutate(histone_group = rowData(pe[["variant"]])$histone_group, .before = 1) |>
+  readr::write_csv(file = fs::path(quarto::get_running_project_root(), "/out/data/variant_assay", ext = "csv"))
+```
+
+A total of `r length(unique(rowData(pe[["ptm"]])$hptm))` single hPTMs were defined.
+
+Now we can repeat the MDS analysis, using the aggregated assays:
+
+1. Globally normalized co-extracts (**protein** level)
+2. Usage-normalized **histone peptidoform** level
+3. Usage-normalized **hPTM** level
+4. Usage-normalized **histone group** level
+
+::: {.column-page}
+
+MDS plots of all samples after general and usage normalization:
+
+::: {.panel-tabset}
+
+```{r}
+#| results: asis
+
+mds_assays <- list()
+if (is.null(params$usage_params[["usage_level"]])) usage_level <- "histone" else usage_level <- params$usage_params[["usage_level"]]
+precursor_norm_name <- paste0("precursorHistoneNorm", stringr::str_to_sentence(usage_level))
+for (viz_assay in c(precursor_norm_name, "variant", "ptm", "co-extracts")) {
+  mds_assay <- limma::plotMDS(assay(pe, viz_assay), plot = FALSE) |>
+    _[c("x", "y", "var.explained")] |>
+    data.frame() |>
+    cbind(colData(pe)) |>
+    rownames_to_column("sample") |>
+    mutate(assay = viz_assay)
+  mds_assays[[viz_assay]] <- mds_assay
+}
+mds_assays <- do.call(rbind, mds_assays)
+var_explained <- as_tibble(mds_assays) |>
+  slice_max(order_by = var.explained, n = 2, by = assay) |>
+  _$var.explained
+
+# plot
+tabs <- colnames(colData(pe))[!colnames(colData(pe)) %in% c("outlier", "quantCols", "original_name")]
+for (fill_col in tabs) {
+  cat("#### ", fill_col, "\n\n", sep = "")
+  p <- ggplot(mds_assays, mapping = aes(
+    x = x, y = y, fill = .data[[fill_col]],
+    size = median_histone_abundance, annotation = rownames(mds_assays)
+  )) +
+    geom_point(colour = "black", shape = 21) +
+    facet_wrap(~assay, nrow = 1, scales = "free") +
+    theme_bw() +
+    xlab(paste0(
+      "Leading logFC dim 1 (",
+      paste(round(100 * var_explained[seq(1, length(var_explained), 2)], 2), collapse = " %, "),
+      "%)"
+    )) +
+    ylab(paste0(
+      "Leading logFC dim 2 (",
+      paste(round(100 * var_explained[seq(2, length(var_explained), 2)], 2), collapse = " %, "),
+      "%)"
+    ))
+  p |>
+    plotly::ggplotly() |>
+    htmltools::tagList() |>
+    print()
+  cat("\n\n")
+}
+```
+
+:::
+
+:::
+
+Finally, the preprocessed dataset and all its assays can be represented as such:
+
+```{r}
+#| label: fig-qfeatures
+#| fig-cap: "Visual representation of the QFeatures object holding all data and its relations"
+#| echo: False
+
+plot(pe)
+```
+
+## Differential usage analysis {#sec-da}
+
+### Model building
+
+Start by creating the model formula and relevant contrasts, then proceed with differential usage testing.
+
+TODO The model will be a "means model" with cell status + treatment as a single factor of four levels.
+
+```{r}
+#| label: chunk-results
+
+# export final dataset
+saveRDS(pe, fs::path(quarto::get_running_project_root(), "ds_processed", ext = "rds"))
+
+# TODO include /out/... in downloads
+```
