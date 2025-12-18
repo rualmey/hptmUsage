@@ -699,7 +699,7 @@ if (!is.null(params$contrasts)) {
           rep.int(rownames(pe[[viz_assay]]), length(unlist(contrasts)))
         },
         family = rep.int(rowData(pe[[viz_assay]])$histone_family, length(unlist(contrasts))),
-        formula = rep(names(formulas), times = purrr::map(contrasts, length) * nrow(pe[[viz_assay]])),
+        formula = rep(names(formulas), times = purrr::map_int(contrasts, length) * nrow(pe[[viz_assay]])),
       )
 
     # calculate BH threshold for each contrast using (rank of first non-significant test
