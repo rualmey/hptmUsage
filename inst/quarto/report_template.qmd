@@ -13,13 +13,17 @@ params:
   reference_levels_names: !expr NULL
   design_formula: "~ 0 + group"
   design_formula_names: "factor"
+  random_effects: !expr NULL
+  contrasts: !expr NULL
+  contrasts_names: !expr NULL
+  generate_lineplots: "none"
 ---
 
 ## Overview
 
 This workflow is an adaptation of msqrob2PTM^[Demeulemeester, N., Gébelin, M., Caldi Gomes, L., Lingor, P., Carapito, C., Martens, L., & Clement, L. (2024). msqrob2PTM: Differential Abundance and Differential Usage Analysis of MS-Based Proteomics Data at the Posttranslational Modification and Peptidoform Level. Molecular & Cellular Proteomics, 23(2), 100708. https://doi.org/10.1016/j.mcpro.2023.100708].
 In brief, data is imported, preprocessed, normalized (to allow usage calculation), and tested for differential usage of histone variants, histone peptidoforms, and hPTMs.
-The dataset will be parsed in @sec-parsing, preprocessed in @sec-preprocessing, and differential usage analysis is then performed in @sec-da.
+The dataset will be parsed in @sec-parsing, preprocessed in @sec-preprocessing, and differential usage analysis is then performed in @sec-da. Finally, static plots and assays can be exported in @sec-export.
 
 We start by importing the relevant packages.
 
@@ -46,7 +50,7 @@ devtools::load_all(path = "/workspaces/hptmUsage")
 
 ## Data parsing {#sec-parsing}
 
-The hPTM dataset (e.g., a peptide ion export, not deconvoluted, including all identified features and properties from Progenesis QIP) was imported using the `hptmUsage::readProgenesis()` function and metadata was added (manually or using the `hptmUsage::replaceColData() function).
+The hPTM dataset (e.g., a peptide ion export, not deconvoluted, including all identified features and properties from Progenesis QIP) was imported using the `hptmUsage::readProgenesis()` function and metadata was added (manually or using the `hptmUsage::replaceColData()` function).
 This data is contained in a QFeatures^[Gatto, L., & Vanderaa, C. (2024). QFeatures: Quantitative features for mass spectrometry data. https://doi.org/10.18129/B9.bioc.QFeatures] object, which will store all information relevant to the dataset from here on.
 
 ```{r}
@@ -512,6 +516,7 @@ For clarification on experimental design matrices, see this excellent guide by L
 ```{r}
 #| label: fig-designmat
 #| fig-cap: "Visualization of the design matrix."
+#| fig-subcap: true
 #| layout-ncol: 1
 
 # drop runs not in the "Include" column of colData, e.g., QC runs or outliers
@@ -537,16 +542,368 @@ names(model_designs) <- params$design_formula_names
 # show the experimental design matrix
 model_designs[grepl("factor", names(model_designs), fixed = TRUE)] |>
   purrr::map("plotlist") |>
-  purrr::walk(print)
+  purrr::walk(print) |>
+  invisible()
 ```
 
-## Saving the results
+Random effects can be included to account for **categorical** technical factors such as sample preparation batches, study individuals, ...
+We can estimate the intra-block correlation to determine whether or not to include factors from the colData as random effects.
+
+```{r}
+#| label: chunk-random-effects
+#| warning: false
+
+# determine intra-block correlation
+for (i in seq_along(model_designs)) {
+  potential_batch_cols <- colData(pe)[
+    !names(colData(pe)) %in% c(
+      "quantCols",
+      "original_name",
+      "group",
+      "include",
+      "outlier",
+      names(model_designs[[i]]$sampledata)
+    )
+  ] |>
+    names()
+  # no point in checking for variables with no duplicates
+  potential_batch_cols <- potential_batch_cols[
+    purrr::map_lgl(potential_batch_cols, \(x) any(duplicated(colData(pe)[[x]])))
+  ]
+  for (j in potential_batch_cols) {
+    limma::duplicateCorrelation(
+      # check only for PTM assay as this is most relevant
+      assay(pe, "ptm"),
+      model_designs[[i]]$designmatrix,
+      block = colData(pe)[[j]]
+    ) |>
+      _$consensus.correlation[[1]] |>
+      (\(x) paste0("Model '", names(model_designs)[[i]], "', ", j, " intra-block correlation = ", x))() |>
+      print()
+  }
+}
+
+# add random intercept(s) to formula(e)
+if (all(is.null(params$random_effects))) {
+  formulas <- purrr::map(params$design_formula, as.formula)
+  names(formulas) <- params$design_formula_names
+} else {
+  formulas <- purrr::map(params$design_formula, function(x) {
+    random_intercepts <- purrr::map_chr(params$random_effects, \(x) paste0("+ (1|", x, ")")) |>
+      paste(collapse = " ")
+    paste(x, paste(random_intercepts)) |>
+      as.formula()
+  })
+  names(formulas) <- params$design_formula_names
+}
+```
+
+A **categorical** factor with intra-block correlation > 0.01 can be included as a random effect if this makes sense for the model;
+when in doubt, contact your local biostatistician!
+
+### Statistical testing
+
+If the relevant contrasts were supplied, the following sections will contain the differential usage results.
+Otherwise, these sections will be empty and the contrasts can be written using the relevant design matrix (see @fig-designmat)
+
+```{r}
+#| label: chunk-contrasts
+
+if (!is.null(params$contrasts)) {
+  contrasts <- purrr::map2(params$contrasts, params$contrasts_names, \(x, y) purrr::set_names(x, y))
+  purrr::iwalk(contrasts, function(x, y) {
+    print(paste0("Model ", y, ":"))
+    purrr::iwalk(x, \(z, a) print(paste("- Contrast", a, "=", z)))
+  })
+} else {
+  print("No contrasts defined!")
+}
+```
+
+Now we use MSqRob2^[Goeminne, LudgerJ. E., Gevaert, K., & Clement, L. (2016). Peptide-level Robust Ridge Regression Improves Estimation, Sensitivity, and Specificity in Data-dependent Quantitative Label-free Shotgun Proteomics *. Molecular & Cellular Proteomics, 15(2), 657–668. https://doi.org/10/f78fjf] to fit robust linear mixed models for every protein, precursor, or PTM, and perform testing according to the defined contrasts.
+
+```{r}
+#| label: chunk-msqrob
+#| warning: false
+
+if (!is.null(params$contrasts)) {
+  # construct the contrast matrix
+  contrasts_full <- list()
+  contrast_matrix <- list()
+  ridge_regression <- list()
+  for (i in seq_along(formulas)) {
+    # ridge regression is only really relevant if including random effects and sufficiently complex
+    ridge_regression[[i]] <- !all(is.null(params$random_effects)) &&
+      length(labels(terms(formulas[[i]]))) - length(params$random_effects) > 1
+    if (ridge_regression[[i]]) {
+      # prepend "ridge" to model parameters names to match output from msqrob function
+      parameter_names <- paste0("ridge", colnames(model_designs[[i]]$designmatrix))
+      # also do the above for the contrasts using regex matches to model parameter names
+      # first escape all special characters from parameters to prevent the later regex from not matching
+      regex_safe_parnames <- colnames(model_designs[[i]]$designmatrix)
+      # longest param first to prevent matching substring e.g. interaction terms
+      regex_safe_parnames <- regex_safe_parnames |>
+        _[order(nchar(regex_safe_parnames), regex_safe_parnames, decreasing = TRUE)] |>
+        str_replace_all(r"---{([\[\]\\*?+(){}^$|.])}---", r"---{\\\1}---") |>
+        (\(x) paste0("(", paste0(x, collapse = "|"), ")"))()
+      contrasts_full[[i]] <- str_replace_all(
+        contrasts[[i]],
+        regex_safe_parnames,
+        "ridge\\1"
+      )
+    } else {
+      parameter_names <- colnames(model_designs[[i]]$designmatrix)
+      contrasts_full[[i]] <- contrasts[[i]]
+    }
+    contrast_matrix[[i]] <- makeContrast(purrr::map_chr(contrasts_full[[i]], paste, "= 0"), parameterNames = parameter_names)
+  }
+
+  # perform hypothesis tests and store relevant results
+  # lists to store dataframes
+  hypothesis_tests <- list()
+  signif_pval_thresh <- list()
+  for (viz_assay in c("co-extracts", "variant", precursor_norm_name, "ptm")) {
+    for (i in seq_along(formulas)) {
+      # model fitting and hypothesis tests using MSqRob2
+      pe <- pe |>
+        msqrob2::msqrob(
+          i = viz_assay,
+          formula = formulas[[i]],
+          modelColumnName = names(formulas)[[i]],
+          robust = TRUE,
+          maxitRob = 20,
+          ridge = ridge_regression[[i]],
+          overwrite = TRUE
+        ) |>
+        hypothesisTest(
+          i = viz_assay,
+          contrast = contrast_matrix[[i]],
+          modelColumn = names(formulas)[[i]],
+          overwrite = TRUE
+        )
+    }
+
+    # extract hypothesis test results
+    hypothesis_tests[[viz_assay]] <- do.call(rbind, rowData(pe[[viz_assay]])[, unlist(contrasts_full)]) |>
+      as_tibble() |>
+      mutate(
+        contrast = {
+          purrr::map(contrasts, names) |>
+            unlist(use.names = FALSE) |>
+            rep(each = nrow(pe[[viz_assay]])) |>
+            factor(levels = unlist(purrr::map(contrasts, names))[!duplicated(unlist(purrr::map(contrasts, names)))])
+        },
+        name = if (viz_assay == precursor_norm_name) {
+          rep.int(rowData(pe[[viz_assay]])$precursor, length(unlist(contrasts)))
+        } else {
+          rep.int(rownames(pe[[viz_assay]]), length(unlist(contrasts)))
+        },
+        family = rep.int(rowData(pe[[viz_assay]])$histone_family, length(unlist(contrasts))),
+        formula = rep(names(formulas), times = purrr::map(contrasts, length) * nrow(pe[[viz_assay]])),
+      )
+
+    # calculate BH threshold for each contrast using (rank of first non-significant test
+    # / total number of tests * FDR)
+    signif_pval_thresh[[viz_assay]] <- hypothesis_tests[[viz_assay]] |>
+      group_by(contrast, formula) |>
+      summarise(BH_thresh = (sum(adjPval < 0.05, na.rm = TRUE) + 1) / n() * 0.05, .groups = "drop")
+  }
+} else {
+  print("No contrasts defined!")
+}
+```
+
+### Volcano plots
+
+And now present the significant differences for every contrast:
+
+```{r}
+#| label: chunk-volcano
+#| output: false
+
+if (!is.null(params$contrasts)) {
+  assay_names <- list(
+    "co-extracts" = "Co-extracts",
+    "variant" = "Histone variants",
+    "precursor_placeholder" = "Histone precursors",
+    "ptm" = "Histone PTMs"
+  )
+  names(assay_names)[[3]] <- precursor_norm_name
+
+  volcanos <- list()
+  volcano_layout <- list()
+  for (viz_assay in c("co-extracts", "variant", precursor_norm_name, "ptm")) {
+    for (formula_name in names(formulas)) {
+      # static plot
+      volcanos[[viz_assay]][[formula_name]] <- hypothesis_tests[[viz_assay]] |>
+        filter(formula == formula_name) |>
+        droplevels() |>
+        ggplot(
+          aes(
+            x = logFC,
+            y = -log10(pval),
+            color = adjPval < 0.05,
+            shape = if (viz_assay == "co-extracts") {
+              NULL
+            } else {
+              family
+            },
+            text = if (viz_assay == "co-extracts") {
+              name
+            } else {
+              paste(family, name, sep = "#")
+            }
+          )
+        ) +
+        geom_hline(
+          data = signif_pval_thresh[[viz_assay]] |> filter(formula == formula_name) |> droplevels(),
+          aes(yintercept = -log10(BH_thresh)),
+          linetype = "dashed",
+          color = "#c44133ff"
+        ) +
+        geom_vline(xintercept = 0, linetype = "dashed", color = "#253544ff") +
+        geom_point() +
+        facet_wrap(vars(contrast), scales = "free") +
+        theme_bw() +
+        theme(plot.title = element_text(face = "bold")) +
+        scale_color_manual(values = alpha(c("#253544ff", "#c44133ff"))) +
+        coord_cartesian(xlim = c(
+          -max(abs(filter(hypothesis_tests[[viz_assay]], formula == formula_name)$logFC)),
+          max(abs(filter(hypothesis_tests[[viz_assay]], formula == formula_name)$logFC))
+        ))
+      # print for testing
+      # print(volcanos[[viz_assay]][[formula_name]] +
+      #   labs(
+      #     x = bquote(log[2](FC)),
+      #     y = bquote(-log[10](Pval)),
+      #     color = bquote(Pval[BH] < 0.05),
+      #     shape = "Histone family",
+      #     title = assay_names[[viz_assay]]
+      #   ))
+      # for output width/height
+      volcano_layout[[formula_name]] <- ggplot_build(volcanos[[viz_assay]][[formula_name]])$layout$layout
+      # # save figures TODO
+      # ggsave(
+      #   plot = volcanos[[viz_assay]][[formula_name]] +
+      #     labs(
+      #       x = bquote(log[2](FC)),
+      #       y = bquote(-log[10](Pval)),
+      #       color = bquote(Pval[BH] < 0.05),
+      #       shape = "Histone family",
+      #       title = assay_names[[viz_assay]]
+      #     ),
+      #   filename = fs::path(quarto::get_running_project_root(), "/out/floats/",
+      #     str_replace_all(assay_names[[viz_assay]], fixed(" "), "_"),
+      #     "_volcano.pdf"),
+      #   width = 40 + 50 * max(volcano_layout[[formula_name]]$COL),
+      #   height = 60 * max(volcano_layout[[formula_name]]$ROW),
+      #   units = "mm", dpi = 300
+      # )
+    }
+  }
+} else {
+  print("No contrasts defined!")
+}
+
+```
+
+::: {.column-page}
+
+```{r}
+#| results: asis
+#| out-width: 100%
+
+if (!is.null(params$contrasts)) {
+  cat(":::: {.panel-tabset}", "\n\n")
+  for (formula_name in names(formulas)) {
+    # quarto programmatic tabset
+    cat(
+      "#### ",
+      paste0("Model ", formula_name),
+      "\n\n",
+      "::::: {.panel-tabset group='assay'}\n\n",
+      sep = ""
+    )
+    for (viz_assay in c("co-extracts", "variant", precursor_norm_name, "ptm")) {
+      # quarto programmatic tabset
+      cat("##### ", assay_names[[viz_assay]], "\n\n", sep = "")
+      # legend label
+      if (viz_assay == "co-extracts") {
+        legend_shape <- NULL
+      } else {
+        legend_shape <- "\nHistone family"
+      }
+      # interactive plot with plotly
+      volcanos[[viz_assay]][[formula_name]] |>
+        plotly::ggplotly(tooltip = c("text", "x", "y"), height = max(volcano_layout[[formula_name]]$ROW) * 500) |>
+        plotly::layout(legend = list(title = list(text = paste0("Pval<sub>BH</sub> < 0.05", legend_shape)))) |>
+        htmltools::tagList() |>
+        print()
+      # end quarto programmatic tabset
+      cat("\n\n")
+    }
+    # end quarto programmatic tabset
+    cat(":::::\n\n")
+  }
+  cat("::::", "\n\n")
+} else {
+  print("No contrasts defined!")
+}
+```
+
+:::
+
+## Data export {#sec-export}
+
+Finally, we can write out the volcano plots and results
 
 ```{r}
 #| label: chunk-results
 
+if (!is.null(params$contrasts)) {
+  # write the results from differential abundance/usage analysis
+  for (viz_assay in c("co-extracts", "variant", precursor_norm_name, "ptm")) {
+    # export results tables
+    hypothesis_tests[[viz_assay]] |>
+      arrange(pval) |>
+      group_by(formula, contrast) |>
+      mutate(within_formula_contrast_rank = order(order(pval))) |>
+      ungroup() |>
+      mutate(
+        signif = adjPval < 0.05,
+        across(where(is.numeric), ~ signif(., 3))
+      ) |>
+      readr::write_csv(file = fs::path(quarto::get_running_project_root(), "/out/data/", paste0("contrast_", viz_assay), ext = "csv"))
+  }
+  archive::archive_write_dir(
+    fs::path(quarto::get_running_project_root(), "/out/figures", ext = "zip"),
+    fs::path(quarto::get_running_project_root(), "/out/floats/")
+  )
+  archive::archive_write_dir(
+    fs::path(quarto::get_running_project_root(), "/out/assays", ext = "zip"),
+    fs::path(quarto::get_running_project_root(), "/out/data/")
+  )
+} else {
+  print("No contrasts defined!")
+}
+
 # export final dataset
 saveRDS(pe, fs::path(quarto::get_running_project_root(), "ds_processed", ext = "rds"))
-
-# TODO include /out/... in downloads
 ```
+
+The results of the differential abundance analysis can be downloaded here:
+
+{{< downloadthis `r fs::path(quarto::get_running_project_root(), "/out/figures", ext = "zip")` label="Download figures" type=info >}}
+
+{{< downloadthis `r fs::path(quarto::get_running_project_root(), "/out/assays", ext = "zip")` label="Download assays" type=info >}}
+
+::: {.callout-note collapse="true"}
+## Session Info
+
+```{r}
+#| label: chunk-sessionInfo
+#|
+sessionInfo()
+```
+
+:::
