@@ -81,27 +81,23 @@
 #'   dataset = ncbtoy,
 #'   output_dir = "./out/",
 #'   mod_params = list(mod_format = "progenesis_sw"),
-#'   design_formula = c(factor = "~ 0 + group", factor_batch = "~ 0 + group*prep_batch"),
+#'   design_formula = c(factor = "~ 0 + group", factor_batch = "~ 0 + group + prep_batch"),
 #'   contrasts = list(
 #'     factor = c("A vs B" = "groupcondition_B - groupcondition_A"),
 #'     factor_batch = c(
 #'       "A vs B" = "groupcondition_B - groupcondition_A",
-#'       "batch_B vs batch_A" = "prep_batchA - prep_batchB"
+#'       "batch_B vs batch_A" = "prep_batchB"
 #'     )
 #'   )
 #' )
-#' # or instead supply such variables as a random effect is this makes more sense
+#' # or instead supply such variables as a random effect if this makes more sense
 #' generateReport(
 #'   dataset = ncbtoy,
 #'   output_dir = "./out/",
 #'   mod_params = list(mod_format = "progenesis_sw"),
 #'   random_effects = "prep_batch",
 #'   contrasts = list(
-#'     factor = c("A vs B" = "groupcondition_B - groupcondition_A"),
-#'     factor_batch = c(
-#'       "A vs B" = "groupcondition_B - groupcondition_A",
-#'       "batch_B vs batch_A" = "prep_batchA - prep_batchB"
-#'     )
+#'     factor = c("A vs B" = "groupcondition_B - groupcondition_A")
 #'   )
 #' )
 #'
@@ -116,9 +112,17 @@
 #'   generate_lineplots = "significant"
 #' )
 #'
-#' # Finally, we can define the level at which usage is defined
-#' # By default,
-#' # For example, we can choose a "variant-corrected" usage workflow and calculate usage of histone variants against their corresponding histone families
+#' # Finally, we can easily define the level at which usage is defined
+#' # By default, histone precursor usage and therefore hPTM/histone variant usage are defined against the entire chromatosome (i.e., all histone proteins)
+#' # Instead, we can choose a "variant-corrected" usage workflow for histone precursors/hPTMs or calculate usage of histone variants against their corresponding histone families
+#' generateReport(
+#'   dataset = ncbtoy,
+#'   output_dir = "./out/",
+#'   mod_params = list(mod_format = "progenesis_sw"),
+#'   contrasts = list(factor = c("A vs B" = "groupcondition_B - groupcondition_A")),
+#'   usage_params = list(usage_level = "histone_group"),
+#'   variant_usage_level = "histone_family"
+#' )
 #'}
 generateReport <- function(
   dataset,

@@ -8,14 +8,17 @@ generateReport(
   dataset,
   output_dir,
   overwrite = FALSE,
+  design_formula = c(factor = "~ 0 + group"),
+  random_effects = NULL,
+  contrasts = NULL,
+  reference_levels = NULL,
+  generate_lineplots = c("none", "significant", "all"),
   histone_params = list(),
   msa_params = list(),
   mod_params = list(),
   contaminant_params = list(),
   usage_params = list(),
   variant_usage_level = c("histone", "histone_family"),
-  reference_levels = NULL,
-  design_formula = c(factor = "~ 0 + group"),
   ...
 )
 }
@@ -23,10 +26,35 @@ generateReport(
 \item{dataset}{The hPTM dataset generated using \code{\link[=readProgenesis]{readProgenesis()}}.}
 
 \item{output_dir}{The path where the final report should be saved (e.g.,
-"./output").}
+"./output/").}
 
 \item{overwrite}{If a report with the same name already exists at
 \code{output_dir}, should it be overwritten (\code{logical(1)}?}
+
+\item{design_formula}{A named \code{character()} of design formula(e), e.g., the
+default \code{c(factor = "~ 0 + group")}. The experimental design matrix will
+only be shown for models that contain "factor" in the name, i.e., the
+default formula name.}
+
+\item{random_effects}{Optional, a \code{character()} of categorical variables in
+the colData that specifies blocking factors for which a random intercept
+should be fit, e.g., sample preparation batch or study individual.}
+
+\item{contrasts}{A named \code{list()} of named \code{character()}s containing relevant
+contrasts for differential usage testing; for example,
+\code{list(factor = c("A vs B" = "groupB - groupA"))} for design_formula
+\code{c(factor = "~ 0 + group")} will return a positive LogFC if usage is higher
+in "conditionB" according to the "factor" model. If no contrasts are
+provided, differential usage testing will be skipped but the design matrix
+and QC plots will still be generated for quick finetuning of the analysis.}
+
+\item{reference_levels}{Optional, a named collection of factors (as present
+in the colData) and their reference level, e.g., \code{c(group = "wild_type")}.
+This allows setting the reference group (i.e., intercept) in a
+"mean-reference" model.}
+
+\item{generate_lineplots}{For which hPTMs/peptidoforms/variants should
+lineplots be generated? One of "none", "significant", or "all".}
 
 \item{histone_params}{A \code{list()} of arguments passed to
 \code{\link[=histonesFromUniprot]{histonesFromUniprot()}}.}
@@ -47,28 +75,92 @@ for "object", "msa", or "i").}
 (see \code{\link[=calculateUsage]{calculateUsage()}}) for variant usage calculation, i.e., one of
 "histone" or "histone_family".}
 
-\item{reference_levels}{Optional, a named collection of factors (as present
-in the colData) and their reference level, e.g., \code{c(group = "wild_type")}.}
-
-\item{design_formula}{A named \code{character()} of design formula(e), e.g., the
-default \code{c(factor = "~ 0 + group")}. The experimental design matrix will
-only be shown for models that contain "factor" in the name.}
-
 \item{...}{Additional parameters passed to \code{\link[quarto:quarto_render]{quarto::quarto_render()}}.}
 }
 \value{
 Invisibly returns the final dataset, including aggregated hPTM assays, for example.
 }
 \description{
-TODO
+Dynamically generates a differential usage report using Quarto. All that
+needs to be supplied is the histone dataset (see
+\code{\link[=readProgenesis]{readProgenesis()}} and \code{\link[=replaceColData]{replaceColData()}}), an output
+directory, and optional settings that modify the analysis. Note that the
+final QFeatures dataset is invisibly returned so that subsequent custom
+analysis/plotting is still possible.
 }
 \details{
-TODO
+Under the hood, this function creates a temporary Quarto project directory
+where a template \code{.qmd} is then rendered. This template file is dynamically
+rendered using knitr YAML params that are defined by this function's
+parameters. The document is rendered as a self-contained HTML, which includes
+a download button to static assets generated during rendering, i.e., figures
+and \code{.csv} assays of relevant usage values.
 }
 \examples{
 \dontrun{
-# TODO
-# Usage level
-...
+# By default, a "variant-agnostic" usage analysis of human histone samples is performed
+# The "ncbtoy" dataset was created by supplying a ".csv" to readProgenesis() and then adding metadata using replaceColData()
+generateReport(ncbtoy, "./out/")
+
+# Inspecting this HTML report, we can see that hPTMs are not properly parsed because they follow a non-standard format
+# We can use the "*_params" parameters to supply this sort of information, see the relevant parameter descriptions for more explanation
+generateReport(ncbtoy, "./out/", mod_params = list(mod_format = "progenesis_sw"))
+
+# Note that this analysis ends at the design matrix of a simple means model that captures the experimental groups
+# This matrix can help us set up the relevant contrasts
+generateReport(
+  dataset = ncbtoy,
+  output_dir = "./out/",
+  mod_params = list(mod_format = "progenesis_sw"),
+  contrasts = list(factor = c("A vs B" = "groupcondition_B - groupcondition_A"))
+)
+
+# We can of course supply our own design formula(e)
+generateReport(
+  dataset = ncbtoy,
+  output_dir = "./out/",
+  mod_params = list(mod_format = "progenesis_sw"),
+  design_formula = c(factor = "~ 0 + group", factor_batch = "~ 0 + group + prep_batch"),
+  contrasts = list(
+    factor = c("A vs B" = "groupcondition_B - groupcondition_A"),
+    factor_batch = c(
+      "A vs B" = "groupcondition_B - groupcondition_A",
+      "batch_B vs batch_A" = "prep_batchB"
+    )
+  )
+)
+# or instead supply such variables as a random effect if this makes more sense
+generateReport(
+  dataset = ncbtoy,
+  output_dir = "./out/",
+  mod_params = list(mod_format = "progenesis_sw"),
+  random_effects = "prep_batch",
+  contrasts = list(
+    factor = c("A vs B" = "groupcondition_B - groupcondition_A")
+  )
+)
+
+# Lineplots can be generated if so desired, for example of the significant hPTMs/peptidoforms/variants
+# These will be available through a download button at the bottom of the HTML report
+# Do note that this can take quite some time/resources to generate all plots
+generateReport(
+  dataset = ncbtoy,
+  output_dir = "./out/",
+  mod_params = list(mod_format = "progenesis_sw"),
+  contrasts = list(factor = c("A vs B" = "groupcondition_B - groupcondition_A")),
+  generate_lineplots = "significant"
+)
+
+# Finally, we can easily define the level at which usage is defined
+# By default, histone precursor usage and therefore hPTM/histone variant usage are defined against the entire chromatosome (i.e., all histone proteins)
+# Instead, we can choose a "variant-corrected" usage workflow for histone precursors/hPTMs or calculate usage of histone variants against their corresponding histone families
+generateReport(
+  dataset = ncbtoy,
+  output_dir = "./out/",
+  mod_params = list(mod_format = "progenesis_sw"),
+  contrasts = list(factor = c("A vs B" = "groupcondition_B - groupcondition_A")),
+  usage_params = list(usage_level = "histone_group"),
+  variant_usage_level = "histone_family"
+)
 }
 }
