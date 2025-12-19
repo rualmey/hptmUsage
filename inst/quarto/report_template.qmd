@@ -684,7 +684,11 @@ if (!is.null(params$contrasts)) {
     }
 
     # extract hypothesis test results
-    hypothesis_tests[[viz_assay]] <- do.call(rbind, rowData(pe[[viz_assay]])[, unlist(contrasts_full)]) |>
+    hypothesis_tests[[viz_assay]] <- rowData(pe[[viz_assay]])[, unlist(contrasts_full)]
+    if (length(contrasts_full[[i]]) > 1) {
+      hypothesis_tests[[viz_assay]] <- do.call(rbind, hypothesis_tests[[viz_assay]])
+    }
+    hypothesis_tests[[viz_assay]] <- hypothesis_tests[[viz_assay]] |>
       as_tibble() |>
       mutate(
         contrast = {
