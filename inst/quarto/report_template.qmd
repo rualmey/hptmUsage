@@ -177,7 +177,7 @@ colData(pe)[names(median_raw_histone_abundance), "median_raw_histone_abundance"]
 pe$extraction_efficiency <- pe$median_raw_histone_abundance / pe$median_raw_coextr_abundance
 # visualize loading consistency / histone extraction efficiency
 p <- ggplot(
-  colData(pe[, !grepl("QC_", pe$quantCols)]),
+  tibble::as_tibble(colData(pe[, !grepl("QC_", pe$quantCols)])),
   aes(x = median_raw_histone_abundance, y = median_raw_coextr_abundance, color = group)
 ) +
   geom_point(aes(shape = outlier, size = extraction_efficiency)) +
@@ -553,41 +553,25 @@ We can estimate the intra-block correlation to determine whether or not to inclu
 #| label: chunk-random-effects
 #| warning: false
 
-# determine intra-block correlation
-for (i in seq_along(model_designs)) {
-  potential_batch_cols <- colData(pe)[
-    !names(colData(pe)) %in% c(
-      "quantCols",
-      "original_name",
-      "group",
-      "include",
-      "outlier",
-      names(model_designs[[i]]$sampledata)
-    )
-  ] |>
-    names()
-  # no point in checking for variables with no duplicates
-  potential_batch_cols <- potential_batch_cols[
-    purrr::map_lgl(potential_batch_cols, \(x) any(duplicated(colData(pe)[[x]])))
-  ]
-  for (j in potential_batch_cols) {
-    limma::duplicateCorrelation(
-      # check only for PTM assay as this is most relevant
-      assay(pe, "ptm"),
-      model_designs[[i]]$designmatrix,
-      block = colData(pe)[[j]]
-    ) |>
-      _$consensus.correlation[[1]] |>
-      (\(x) paste0("Model '", names(model_designs)[[i]], "', ", j, " intra-block correlation = ", x))() |>
-      print()
-  }
-}
-
 # add random intercept(s) to formula(e)
 if (all(is.null(params$random_effects))) {
   formulas <- purrr::map(params$design_formula, as.formula)
   names(formulas) <- params$design_formula_names
 } else {
+  # determine intra-block correlation
+  for (i in seq_along(model_designs)) {
+    for (j in params$random_effects) {
+      limma::duplicateCorrelation(
+        # check only for PTM assay as this is most relevant
+        assay(pe, "ptm"),
+        model_designs[[i]]$designmatrix,
+        block = colData(pe)[[j]]
+      ) |>
+        _$consensus.correlation[[1]] |>
+        (\(x) paste0("Model '", names(model_designs)[[i]], "', ", j, " intra-block correlation = ", x))() |>
+        print()
+    }
+  }
   formulas <- purrr::map(params$design_formula, function(x) {
     random_intercepts <- purrr::map_chr(params$random_effects, \(x) paste0("+ (1|", x, ")")) |>
       paste(collapse = " ")

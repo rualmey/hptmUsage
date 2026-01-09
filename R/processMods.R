@@ -223,6 +223,11 @@ setMethod(
 )
 
 .parse_mods <- function(mod_strings, format) {
+  # workaround for historic bug in parsing script...
+  if (format == "progenesis_sw") {
+    mod_strings <- stringr::str_replace_all(mod_strings, r"(\(ST\)Ph)", "(ST) Ph")
+  }
+
   pattern <- switch(
     format,
     "progenesis" = r"(\[(?<loc>\d+|N-term|C-term)\] (?<mod>.+?) \(.+?\))",

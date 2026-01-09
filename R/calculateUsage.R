@@ -150,6 +150,8 @@ setMethod(
           ...
         )
     }
+
+    return(object)
   }
 )
 
@@ -209,7 +211,6 @@ setMethod(
     if (target == "ptm") {
       object <- object |>
         deconvolute(deconv = deconv, sep = sep, group = group) |>
-        # consider MsCoreUtils::medianPolish() if fcol = histone?; this is faster and should perform similarly here
         QFeatures::aggregateFeatures(fcol = "hptm", ...)
     } else {
       object <- object |>
