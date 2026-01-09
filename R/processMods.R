@@ -175,8 +175,10 @@ setMethod(
       rd$histone
     )
 
-    # add precursor column
+    # add precursor column and use for naming
     rd$precursor <- .create_proforma(rd$sequence, mod_info$loc, mod_info$mod, rd$charge)
+    stopifnot("Duplicate precursors detected" = !any(duplicated(rd$precursor)))
+    rownames(object) <- rd$precursor
 
     # within-peptide
     mod_info$loc <- purrr::map2(mod_info$loc, rd$sequence, function(locs, seq) {

@@ -16,7 +16,7 @@ params:
   random_effects: !expr NULL
   contrasts: !expr NULL
   contrasts_names: !expr NULL
-  generate_lineplots: "none"
+  generate_usageplots: "none"
 ---
 
 ## Overview
@@ -856,6 +856,50 @@ if (!is.null(params$contrasts)) {
 ```
 
 :::
+
+### Usage plots
+
+```{r}
+#| label: chunk-usageplots
+
+if (!is.null(params$contrasts)) {
+  if (params$generate_usageplots != "none") {
+    if (params$generate_usageplots == "all") {
+      features_to_plot <- list(
+        ptm = hypothesis_tests$ptm$name,
+        variant = hypothesis_tests$variant$name
+      )
+    } else {
+      .signif_feat <- function(df) {
+        df |>
+          dplyr::filter(adjPval <= 0.05) |>
+          dplyr::arrange(adjPval) |>
+          dplyr::pull(name) |>
+          unique()
+      }
+      features_to_plot <- list(
+        ptm = .signif_feat(hypothesis_tests$ptm),
+        variant = .signif_feat(hypothesis_tests$variant)
+      )
+    }
+    names(features_to_plot) <- c(precursor_norm_name, "ptm", "variant")
+    # TODO
+    usagePlot(
+      object = pe,
+      features = features_to_plot
+    )
+    # TODO
+    usagePlot(
+      object = temp,
+      features = temp_feat
+    )
+    # TODO
+    print(features_to_plot)
+  }
+} else {
+  print("No contrasts defined!")
+}
+```
 
 ## Data export {#sec-export}
 

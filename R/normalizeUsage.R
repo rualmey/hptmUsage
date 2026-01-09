@@ -161,6 +161,7 @@ setMethod(
 
     # extract protein abundances as numeric scaling factors
     scaling_factors <- SummarizedExperiment::assay(agg, "assay", withDimnames = FALSE)
+    S4Vectors::metadata(object)$scaling_factors <- scaling_factors
     # and match to original assay dimensions
     usage_level_identifier <- rowData(object)[[usage_level]]
     # workaround for boolean "histone" column
@@ -170,6 +171,8 @@ setMethod(
     scaling_factors <- scaling_factors[usage_level_identifier, ]
 
     SummarizedExperiment::assay(object) <- SummarizedExperiment::assay(object) - scaling_factors
+    # the rowData column should be a list of scaling factors (= numeric vectors)
+    S4Vectors::metadata(object)$usage_level <- usage_level
 
     object
   }

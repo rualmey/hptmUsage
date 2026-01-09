@@ -76,4 +76,5 @@ Collate:
     'readProgenesis.R'
     'replaceColData.R'
     'tagContaminants.R'
+    'usagePlot.R'
     'zzz.R'

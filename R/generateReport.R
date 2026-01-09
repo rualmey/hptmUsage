@@ -39,8 +39,9 @@
 #'   in the colData) and their reference level, e.g., `c(group = "wild_type")`.
 #'   This allows setting the reference group (i.e., intercept) in a
 #'   "mean-reference" model.
-#' @param generate_lineplots For which hPTMs/peptidoforms/variants should
-#'   lineplots be generated? One of "none", "significant", or "all".
+#' @param generate_usageplots For which hPTMs/peptidoforms/variants should
+#'   usageplots be generated? One of "none", "significant" (for any design
+#'   formula), or "all".
 #' @param histone_params A `list()` of arguments passed to
 #'   [histonesFromUniprot()].
 #' @param msa_params A `list()` of arguments passed to [alignHistones()] (except
@@ -101,7 +102,7 @@
 #'   )
 #' )
 #'
-#' # Lineplots can be generated if so desired, for example of the significant hPTMs/peptidoforms/variants
+#' # Usageplots can be generated if so desired, for example of the significant hPTMs/peptidoforms/variants
 #' # These will be available through a download button at the bottom of the HTML report
 #' # Do note that this can take quite some time/resources to generate all plots
 #' generateReport(
@@ -109,7 +110,7 @@
 #'   output_dir = "./out/",
 #'   mod_params = list(mod_format = "progenesis_sw"),
 #'   contrasts = list(factor = c("A vs B" = "groupcondition_B - groupcondition_A")),
-#'   generate_lineplots = "significant"
+#'   generate_usageplots = "significant"
 #' )
 #'
 #' # Finally, we can easily define the level at which usage is defined
@@ -132,7 +133,7 @@ generateReport <- function(
   random_effects = NULL,
   contrasts = NULL,
   reference_levels = NULL,
-  generate_lineplots = c("none", "significant", "all"),
+  generate_usageplots = c("none", "significant", "all"),
   histone_params = list(),
   msa_params = list(),
   mod_params = list(),
@@ -141,13 +142,12 @@ generateReport <- function(
   variant_usage_level = c("histone", "histone_family"),
   ...
 ) {
+  generate_usageplots <- match.arg(generate_usageplots)
   .paramcheck(histone_params, hptmUsage::histonesFromUniprot)
   .paramcheck(msa_params, hptmUsage::alignHistones, exclusions = "unaligned_histones")
   .paramcheck(mod_params, hptmUsage::processMods, exclusions = c("object", "msa", "i"))
   .paramcheck(contaminant_params, hptmUsage::tagContaminants, exclusions = c("object", "i"))
   .paramcheck(usage_params, hptmUsage::calculateUsage, exclusions = c("object", "i", "name", "target"))
-  variant_usage_level <- match.arg(variant_usage_level)
-  generate_lineplots <- match.arg(variant_usage_level)
 
   # quarto needs to be available
   quarto::quarto_available(min = "1.8", max = NULL, error = TRUE)
@@ -189,7 +189,7 @@ generateReport <- function(
           random_effects = random_effects,
           contrasts = contrasts,
           contrasts_names = purrr::map(contrasts, names),
-          generate_lineplots = generate_lineplots
+          generate_usageplots = generate_usageplots
         ),
         ...
       )

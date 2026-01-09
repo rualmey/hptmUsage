@@ -12,7 +12,7 @@ generateReport(
   random_effects = NULL,
   contrasts = NULL,
   reference_levels = NULL,
-  generate_lineplots = c("none", "significant", "all"),
+  generate_usageplots = c("none", "significant", "all"),
   histone_params = list(),
   msa_params = list(),
   mod_params = list(),
@@ -53,8 +53,8 @@ in the colData) and their reference level, e.g., \code{c(group = "wild_type")}.
 This allows setting the reference group (i.e., intercept) in a
 "mean-reference" model.}
 
-\item{generate_lineplots}{For which hPTMs/peptidoforms/variants should
-lineplots be generated? One of "none", "significant", or "all".}
+\item{generate_usageplots}{For which hPTMs/peptidoforms/variants should
+usageplots be generated? One of "none", "significant", or "all".}
 
 \item{histone_params}{A \code{list()} of arguments passed to
 \code{\link[=histonesFromUniprot]{histonesFromUniprot()}}.}
@@ -140,7 +140,7 @@ generateReport(
   )
 )
 
-# Lineplots can be generated if so desired, for example of the significant hPTMs/peptidoforms/variants
+# Usageplots can be generated if so desired, for example of the significant hPTMs/peptidoforms/variants
 # These will be available through a download button at the bottom of the HTML report
 # Do note that this can take quite some time/resources to generate all plots
 generateReport(
@@ -148,7 +148,7 @@ generateReport(
   output_dir = "./out/",
   mod_params = list(mod_format = "progenesis_sw"),
   contrasts = list(factor = c("A vs B" = "groupcondition_B - groupcondition_A")),
-  generate_lineplots = "significant"
+  generate_usageplots = "significant"
 )
 
 # Finally, we can easily define the level at which usage is defined
