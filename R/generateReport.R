@@ -52,9 +52,6 @@
 #'   [tagContaminants()] (except for "object" or "i").
 #' @param usage_params A `list()` of arguments passed to [calculateUsage()]
 #'   (except for "object", "i", "name", or "target").
-#' @param variant_usage_level A `character(1)` specifying the `usage_level`
-#'   (see [calculateUsage()]) for variant usage calculation, i.e., one of
-#'   "histone" or "histone_family".
 #' @param ... Additional parameters passed to [quarto::quarto_render()].
 #' @returns Invisibly returns the final dataset, including aggregated hPTM assays, for example.
 #' @export
@@ -115,14 +112,13 @@
 #'
 #' # Finally, we can easily define the level at which usage is defined
 #' # By default, histone precursor usage and therefore hPTM/histone variant usage are defined against the entire chromatosome (i.e., all histone proteins)
-#' # Instead, we can choose a "variant-corrected" usage workflow for histone precursors/hPTMs or calculate usage of histone variants against their corresponding histone families
+#' # For example, we can choose a "variant-corrected" usage workflow for histone precursors/hPTMs
 #' generateReport(
 #'   dataset = ncbtoy,
 #'   output_dir = "./out/",
 #'   mod_params = list(mod_format = "progenesis_sw"),
 #'   contrasts = list(factor = c("A vs B" = "groupcondition_B - groupcondition_A")),
-#'   usage_params = list(usage_level = "histone_group"),
-#'   variant_usage_level = "histone_family"
+#'   usage_params = list(usage_level = "histone_group")
 #' )
 #'}
 generateReport <- function(
@@ -139,7 +135,6 @@ generateReport <- function(
   mod_params = list(),
   contaminant_params = list(),
   usage_params = list(),
-  variant_usage_level = c("histone", "histone_family"),
   ...
 ) {
   generate_usageplots <- match.arg(generate_usageplots)
@@ -181,7 +176,6 @@ generateReport <- function(
           mod_params = mod_params,
           contaminant_params = contaminant_params,
           usage_params = usage_params,
-          variant_usage_level = variant_usage_level,
           reference_levels = reference_levels,
           reference_levels_names = names(reference_levels),
           design_formula = design_formula,

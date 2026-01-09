@@ -8,7 +8,6 @@ params:
   mod_params: !expr list()
   contaminant_params: !expr list()
   usage_params: !expr list()
-  variant_usage_level: "histone"
   reference_levels: !expr NULL
   reference_levels_names: !expr NULL
   design_formula: "~ 0 + group"
@@ -387,7 +386,9 @@ hist_abundance_qc <- pe |>
     fcol = "histone_family",
     name = "histoneFamily",
     fun = MsCoreUtils::robustSummary,
-    maxit = 50
+    # speed up model fit
+    maxit = 5,
+    acc = 0.001
   ) |>
   assay("histoneFamily") |>
   reshape2::melt() |>
@@ -409,10 +410,23 @@ Now calculate hPTM usage.
 
 ```{r}
 #| label: chunk-usage-calculation
-#| message: false
 #| warning: false
 
+# hPTM usage
 pe <- do.call(calculateUsage, rlang::list2(object = pe, i = "precursorHistone", name = "ptm", !!!params$usage_params))
+
+# variant usage
+if (is.null(params$usage_params[["usage_level"]])) {
+  usage_level <- "histone"
+ } else {
+  usage_level <- params$usage_params[["usage_level"]]
+}
+if (usage_level == "histone_group") {
+  message("Variant usage cannot be normalized to the group itself (usage_level == 'histone_group') so this will be normalized to the histone family instead.")
+  variant_usage_level <- "histone_family"
+} else {
+  variant_usage_level <- "usage_level"
+}
 pe <- do.call(calculateUsage, rlang::list2(object = pe, i = "precursorHistone", name = "variant", target = "variant", params$variant_usage_level))
 
 # export the hPTM usage data
@@ -447,7 +461,6 @@ MDS plots of all samples after general and usage normalization:
 #| results: asis
 
 mds_assays <- list()
-if (is.null(params$usage_params[["usage_level"]])) usage_level <- "histone" else usage_level <- params$usage_params[["usage_level"]]
 precursor_norm_name <- paste0("precursorHistoneNorm", stringr::str_to_sentence(usage_level))
 for (viz_assay in c(precursor_norm_name, "variant", "ptm", "co-extracts")) {
   mds_assay <- limma::plotMDS(assay(pe, viz_assay), plot = FALSE) |>
