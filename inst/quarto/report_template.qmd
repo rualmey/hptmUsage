@@ -676,13 +676,15 @@ if (!is.null(params$contrasts)) {
           i = viz_assay,
           contrast = contrast_matrix[[i]],
           modelColumn = names(formulas)[[i]],
+          resultsColumnNamePrefix = paste0(names(formulas)[[i]], "/"),
           overwrite = TRUE
         )
     }
 
     # extract hypothesis test results
-    hypothesis_tests[[viz_assay]] <- rowData(pe[[viz_assay]])[, unlist(contrasts_full)]
-    if (length(contrasts_full[[i]]) > 1) {
+    prefixed_contrasts <- purrr::imap(contrasts_full, \(x, idx) paste0(names(formulas)[[idx]], "/", x))
+    hypothesis_tests[[viz_assay]] <- rowData(pe[[viz_assay]])[, unlist(prefixed_contrasts)]
+    if (length(unlist(contrasts_full)) > 1) {
       hypothesis_tests[[viz_assay]] <- do.call(rbind, hypothesis_tests[[viz_assay]])
     }
     hypothesis_tests[[viz_assay]] <- hypothesis_tests[[viz_assay]] |>
