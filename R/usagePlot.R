@@ -19,74 +19,142 @@
 #' # TODO
 usagePlot <- function(
   object,
-  features,
-  include_precursors = TRUE,
-  design_formula = ~group,
-  show_legend = TRUE
+  assays,
+  model = "factor",
+  significant_only = TRUE
 ) {
   stopifnot("'object' must be a QFeatures object." = is(object, "QFeatures"))
+  stopifnot("'assays' must only contain names 'ptm' and/or 'variant'" = all(names(assays) %in% c("ptm", "variant")))
+  purrr::imap(assays, \(x, idx) list(QFeatures:::.normIndex(object, x)) |> purrr::set_names(idx))
 
-  # retrieve relevant precursors
-  precursor_features <- purrr::imap(features, \(x, idx) .get_precursor_features(object, idx, x))
-  # reduce to only non-duplicate assays and features
-  precursor_features <- tibble::tibble(
-    assay = purrr::map_chr(precursor_features, "assay"),
-    feats = purrr::map(precursor_features, "feats")
-  ) |>
-    dplyr::group_by(.data[["assay"]]) |>
-    dplyr::summarise(
-      feats = list(unique(unlist(feats))),
-      .groups = "drop"
-    ) |>
-    tibble::deframe()
-  features <- c(features, precursor_features)
+  # retrieve feature data = summarized and estimated PTM or variant usage
+  features <- purrr::imap(assays, \(x, idx) .get_features(x, idx, object, model, significant_only))
+  summarized_usage <- purrr::imap(features, \(x, idx) .get_summarized_usage(x, idx, object))
+  estimated_usage <- purrr::imap(features, \(x, idx) .get_estimated_usage(x, idx, object, model))
 
-  plot_list <- purrr::imap(features, function(feats, assay) {
-    # retrieve normalization factors
-    normalization_factors <- .fetch_normalization_factors(object, assay, feats)
-    level <- .detect_feature_level(object, assay)
+  # retrieve precursor data = abundance and usage of corresponding precursors
+  precursor_features <- purrr::imap(features, \(x, idx) .get_precursor_features(x, idx, object))
+  # TODO
+  return(precursor_features)
 
-    plots <- vector("list", length(feats))
-    names(plots) <- feats
-    for (i in seq_along(feats)) {
-      target <- feats[i]
-      normalization <- normalization_factors$scaling_factors[i, ]
-
-      # TODO HERE
-    }
-
-    # Filter out NULLs if any skips happened
-    # TODO needed?
-    plots <- plots[!purrr::map_lgl(plots, is.null)]
-  })
-
-  return(plot_list)
+  # retrieve normalization factors
+  norm_factors <- purrr::imap(features, \(x, idx) .get_norm_factors(x, idx, object))
 }
 
 # ------------------------------------------------------------------------------
 # Internal Helper Functions
 # ------------------------------------------------------------------------------
 
-.get_precursor_features <- function(object, assay_name, features) {
-  link <- QFeatures::assayLink(object, assay_name)
-  precursor_assay <- link@from
-  link_col <- link@fcol
+.get_features <- function(assay_names, assay_level, object, model, significant_only) {
+  purrr::map(assay_names, function(x) {
+    rd <- rowData(object[[x]])
+    # rowData columns with data.frames containing adjPval
+    contrast_df <- paste0(names(model), "/") |>
+      paste(collapse = "|") |>
+      stringr::str_starts(names(rd), pattern = _)
+    contrast_df <- purrr::map(names(rd)[contrast_df], \(x) tibble::as_tibble(rd[[x]], rownames = "name")) |>
+      dplyr::bind_rows()
+    if (significant_only) {
+      contrast_df <- contrast_df |>
+        dplyr::filter(.data[["adjPval"]] <= 0.05)
+    }
+    contrast_df <- contrast_df |>
+      dplyr::arrange(.data[["adjPval"]]) |>
+      dplyr::pull(.data[["name"]]) |>
+      unique()
+  }) |>
+    # store assay name for later retrieval
+    purrr::set_names(assay_names)
+}
 
-  rd <- SummarizedExperiment::rowData(object[[precursor_assay]])
-  feat_mask <- rd[[link_col]] %in% features
-  precursor_features <- SummarizedExperiment::rowData(object[[precursor_assay]][feat_mask])$precursor |>
-    unique()
+.get_summarized_usage <- function(features, assay_level, object) {
+  purrr::imap(features, function(x, idx) {
+    SummarizedExperiment::assay(object[[idx]][x]) |>
+      tibble::as_tibble(rownames = "feature") |>
+      tidyr::pivot_longer(!feature, names_to = "sample", values_to = "value") |>
+      dplyr::mutate(level = if (assay_level == "ptm") "PTM\nUsage" else "Variant\nUsage")
+  })
+}
 
-  # PTM assays have a deconvoluted assay "in-between" precursor and hPTM
-  if (stringr::str_ends(precursor_assay, "Deconv")) {
-    precursor_assay <- QFeatures::assayLink(object, precursor_assay)@from
+.get_estimated_usage <- function(features, assay_level, object, model) {
+  purrr::imap(features, function(x, idx) {
+    purrr::imap(model, function(model_formula, model_name) {
+      design_mat <- model.matrix(as.formula(model_formula), data = droplevels(colData(object)))
+      purrr::map(rowData(object[[idx]][x])[[model_name]], function(model) {
+        coef <- msqrob2::getCoef(model)
+        # fix ridge regression as this prepends "ridge" to the factor name
+        names(coef) <- stringr::str_remove(names(coef), "^ridge")
+        fixed_coef <- intersect(names(coef), colnames(design_mat))
+        # only calculate fixed effects as random effects are of no interest
+        design_mat[, fixed_coef, drop = FALSE] %*%
+          coef[fixed_coef] |>
+          as.numeric() |>
+          purrr::set_names(rownames(colData(object)))
+      }) |>
+        tibble::as_tibble() |>
+        dplyr::mutate(sample = rownames(colData(object))) |>
+        tidyr::pivot_longer(!sample, names_to = "feature", values_to = "value") |>
+        dplyr::relocate(feature) |>
+        dplyr::mutate(
+          level = if (assay_level == "ptm") {
+            paste0("PTM Estimated\nModel '", model_name, "'")
+          } else {
+            paste0("Variant Estimated\nModel '", model_name, "'")
+          }
+        )
+    }) |>
+      dplyr::bind_rows()
+  })
+}
+
+.link_data <- function(object, assay, assay_level = NULL) {
+  if (is.null(assay_level) || assay_level == "variant") {
+    link <- QFeatures::assayLink(object, assay)
+    precursor_assay <- link@from
+    link_fcol <- link@fcol
+  } else if (assay_level == "ptm") {
+    links <- QFeatures::assayLinks(object, assay)
+    precursor_assay <- names(links)[[3]]
+    link_fcol <- links[[1]]@fcol
+  } else {
+    # incorrect names?
+    stop()
   }
 
-  return(list(
-    assay = precursor_assay,
-    feats = precursor_features
-  ))
+  list(precursor_assay = precursor_assay, fcol = link_fcol)
 }
+
+.get_precursor_features <- function(assay_features, assay_level, object) {
+  purrr::imap(assay_features, function(x, idx) {
+    link_data <- .link_data(object, idx)
+    rd <- rowData(object[[link_data$precursor_assay]])
+    purrr::map(x, \(y) rd[rd[[link_data$fcol]] == y, ]$precursor) |>
+      purrr::set_names(x)
+  })
+}
+
+.get_norm_factors <- function(assay_features, assay_level, object) {
+  purrr::imap(assay_features, function(x, idx) {
+    # retrieve metadata
+    precursor_assay <- .link_data(object, idx, assay_level)$precursor_assay
+    metadata <- metadata(object[[precursor_assay]])
+
+    # match factors to features
+    factor_names <- rowData(object[[idx]][x])[[metadata$usage_level]]
+    if (metadata$usage_level == "histone") {
+      factor_names <- as.integer(factor_names)
+    }
+    scaling_factors <- metadata$scaling_factors[factor_names, ]
+
+    list(
+      scaling_factors = scaling_factors,
+      usage_level = metadata$usage_level
+    )
+  })
+}
+
+
+# OLD TODO
 
 .fetch_normalization_factors <- function(object, assay, feats) {
   metadata <- metadata(object[[assay]])
