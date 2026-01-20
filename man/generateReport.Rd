@@ -18,7 +18,6 @@ generateReport(
   mod_params = list(),
   contaminant_params = list(),
   usage_params = list(),
-  variant_usage_level = c("histone", "histone_family"),
   ...
 )
 }
@@ -54,7 +53,8 @@ This allows setting the reference group (i.e., intercept) in a
 "mean-reference" model.}
 
 \item{generate_usageplots}{For which hPTMs/peptidoforms/variants should
-usageplots be generated? One of "none", "significant", or "all".}
+usageplots be generated? One of "none", "significant" (for any design
+formula), or "all".}
 
 \item{histone_params}{A \code{list()} of arguments passed to
 \code{\link[=histonesFromUniprot]{histonesFromUniprot()}}.}
@@ -70,10 +70,6 @@ for "object", "msa", or "i").}
 
 \item{usage_params}{A \code{list()} of arguments passed to \code{\link[=calculateUsage]{calculateUsage()}}
 (except for "object", "i", "name", or "target").}
-
-\item{variant_usage_level}{A \code{character(1)} specifying the \code{usage_level}
-(see \code{\link[=calculateUsage]{calculateUsage()}}) for variant usage calculation, i.e., one of
-"histone" or "histone_family".}
 
 \item{...}{Additional parameters passed to \code{\link[quarto:quarto_render]{quarto::quarto_render()}}.}
 }
@@ -153,14 +149,13 @@ generateReport(
 
 # Finally, we can easily define the level at which usage is defined
 # By default, histone precursor usage and therefore hPTM/histone variant usage are defined against the entire chromatosome (i.e., all histone proteins)
-# Instead, we can choose a "variant-corrected" usage workflow for histone precursors/hPTMs or calculate usage of histone variants against their corresponding histone families
+# For example, we can choose a "variant-corrected" usage workflow for histone precursors/hPTMs
 generateReport(
   dataset = ncbtoy,
   output_dir = "./out/",
   mod_params = list(mod_format = "progenesis_sw"),
   contrasts = list(factor = c("A vs B" = "groupcondition_B - groupcondition_A")),
-  usage_params = list(usage_level = "histone_group"),
-  variant_usage_level = "histone_family"
+  usage_params = list(usage_level = "histone_group")
 )
 }
 }
