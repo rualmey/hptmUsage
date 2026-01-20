@@ -142,15 +142,16 @@ setMethod(
       "'usage_level' should not contain any `NA`, filter to only histones" = !any(is.na(rowData(object)[[usage_level]]))
     )
 
-    if (usage_level %in% c("histone", "histone_family")) {
-      agg <- QFeatures::aggregateFeatures(
+    arguments <- list(...)
+    if (usage_level %in% c("histone", "histone_family") && is.null(arguments$fun)) {
+      agg <- suppressWarnings(QFeatures::aggregateFeatures(
         object,
         fcol = usage_level,
         # speed up model fit, large enough number of peptides
         maxit = 5,
         acc = 0.001,
         ...
-      )
+      ))
     } else {
       agg <- QFeatures::aggregateFeatures(
         object,

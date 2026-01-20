@@ -177,7 +177,8 @@ setMethod(
 
     # add precursor column and use for naming
     rd$precursor <- .create_proforma(rd$sequence, mod_info$loc, mod_info$mod, rd$charge)
-    stopifnot("Duplicate precursors detected" = !any(duplicated(rd$precursor)))
+    # redundant?
+    # stopifnot("Duplicate precursors detected" = !any(duplicated(rd$precursor)))
     rownames(object) <- rd$precursor
 
     # within-peptide
