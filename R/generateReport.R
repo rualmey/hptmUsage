@@ -58,15 +58,18 @@
 #' @examples
 #' \dontrun{
 #' # By default, a "variant-agnostic" usage analysis of human histone samples is performed
-#' # The "ncbtoy" dataset was created by supplying a ".csv" to readProgenesis() and then adding metadata using replaceColData()
+#' # The "ncbtoy" dataset was created by supplying a ".csv" to readProgenesis()
+#' # and then adding metadata using replaceColData()
 #' generateReport(ncbtoy, "./out/")
 #'
-#' # Inspecting this HTML report, we can see that hPTMs are not properly parsed because they follow a non-standard format
-#' # We can use the "*_params" parameters to supply this sort of information, see the relevant parameter descriptions for more explanation
+#' # Inspecting this HTML report, we can see that hPTMs are not properly parsed
+#' # because they follow a non-standard format. We can use the "*_params" parameters
+#' # to supply this sort of information, see the relevant parameter descriptions
+#' # for more explanation
 #' generateReport(ncbtoy, "./out/", mod_params = list(mod_format = "progenesis_sw"))
 #'
-#' # Note that this analysis ends at the design matrix of a simple means model that captures the experimental groups
-#' # This matrix can help us set up the relevant contrasts
+#' # Note that this analysis ends at the design matrix of a simple means model that
+#' # captures the experimental groups. This matrix can help us set up the relevant contrasts
 #' generateReport(
 #'   dataset = ncbtoy,
 #'   output_dir = "./out/",
@@ -99,7 +102,8 @@
 #'   )
 #' )
 #'
-#' # Usageplots can be generated if so desired, for example of the significant hPTMs/peptidoforms/variants
+#' # Usageplots can be generated if so desired, for example of the significant
+#' # hPTMs/peptidoforms/variants.
 #' # These will be available through a download button at the bottom of the HTML report
 #' # Do note that this can take quite some time/resources to generate all plots
 #' generateReport(
@@ -111,7 +115,8 @@
 #' )
 #'
 #' # Finally, we can easily define the level at which usage is defined
-#' # By default, histone precursor usage and therefore hPTM/histone variant usage are defined against the entire chromatosome (i.e., all histone proteins)
+#' # By default, histone precursor usage and therefore hPTM/histone variant usage
+#' # are defined against the entire chromatosome (i.e., all histone proteins)
 #' # For example, we can choose a "variant-corrected" usage workflow for histone precursors/hPTMs
 #' generateReport(
 #'   dataset = ncbtoy,
