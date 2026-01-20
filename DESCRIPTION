@@ -54,6 +54,7 @@ Imports:
 Suggests:
     bench,
     covr,
+    mockery,
     testthat (>= 3.0.0),
     vcr,
     withr
