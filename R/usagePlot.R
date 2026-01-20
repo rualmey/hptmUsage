@@ -5,23 +5,27 @@
 #' precursors, or PTMs across samples. It visualizes the relevant usage
 #' normalization factors, corrected usages, and model estimates.
 #'
-#' @param object A `QFeatures` object containing the histone data.
-#' @param features A named `list()` of feature names (hPTM or variant group) to
-#'   plot, where names should correspond to the assay names in `object`.
-#' @param include_precursors Logical. Whether to generate lineplots for all
-#'   precursors corresponding to hPTMs or variants to plot.
-#' @param design_formula A formula used for the linear model. Defaults to `~group`.
-#'   Used to reconstruct model estimates.
-#' @param show_legend Logical. Whether to show the legend. Defaults to `TRUE`.
-#' @returns A list of `ggplot` objects.
+#' @param object A `QFeatures` object containing the histone data, including
+#'   models from [msqrob2::msqrob()] etc.
+#' @param assays A named `list()` of assays (`character()` or `integer()`) to
+#'   plot (hPTM and/or variant group level), where names should correspond to
+#'   the assay level, i.e., "ptm" or "variant". For example `list(ptm = "ptm",
+#'   variant = "variant"),`.
+#' @param model A named `character()` of formula(e) that were fit using
+#'   [msqrob2::msqrob()]. Used to reconstruct model estimates. For example,
+#'   `c(meansReference = "~ group", regressionTreat = "~ cell_line + treatment")`.
+#' @param significant_only Logical. Whether to generate lineplots for all
+#'   features or only those that weres significant in **any** contrasts of the
+#'   supplied model(s).
+#' @param show_legend Logical. Whether to show the legend.
+#' @returns A list of `ggplot` objects, nested by assay level and assay name.
 #' @export
-#' @examples
-#' # TODO
 usagePlot <- function(
   object,
   assays,
-  model = "factor",
-  significant_only = TRUE
+  model,
+  significant_only = TRUE,
+  show_legend = TRUE
 ) {
   stopifnot("'object' must be a QFeatures object." = is(object, "QFeatures"))
   stopifnot("'assays' must only contain names 'ptm' and/or 'variant'" = all(names(assays) %in% c("ptm", "variant")))
@@ -34,11 +38,68 @@ usagePlot <- function(
 
   # retrieve precursor data = abundance and usage of corresponding precursors
   precursor_features <- purrr::imap(features, \(x, idx) .get_precursor_features(x, idx, object))
-  # TODO
-  return(precursor_features)
+  precursor_abundance <- purrr::imap(precursor_features, \(x, idx) {
+    .get_precursor_abundance(x, idx, object, usage = FALSE)
+  })
+  precursor_usage <- purrr::imap(precursor_features, \(x, idx) .get_precursor_abundance(x, idx, object, usage = TRUE))
 
   # retrieve normalization factors
   norm_factors <- purrr::imap(features, \(x, idx) .get_norm_factors(x, idx, object))
+
+  # plot
+  plot_list <- purrr::map_depth(features, 2, \(x) vector("list", length(x)) |> purrr::set_names(x))
+  for (assay_level in seq_along(plot_list)) {
+    for (assay in seq_along(plot_list[[assay_level]])) {
+      for (i in seq_along(plot_list[[assay_level]][[assay]])) {
+        # hPTM/variant features
+        feat <- features[[assay_level]][[assay]][[i]]
+        summ <- summarized_usage[[assay_level]][[assay]] |> dplyr::filter(.data[["feature"]] == feat)
+        est <- estimated_usage[[assay_level]][[assay]] |> dplyr::filter(.data[["feature"]] == feat)
+
+        # precursors
+        prec_ab <- precursor_abundance[[assay_level]][[assay]][[i]]
+        prec_us <- precursor_usage[[assay_level]][[assay]][[i]]
+
+        # normalization factors
+        usage_level <- norm_factors[[assay_level]][[assay]][["usage_level"]]
+        fact <- norm_factors[[assay_level]][[assay]][["scaling_factors"]][i, , drop = FALSE] |>
+          tibble::as_tibble() |>
+          tidyr::pivot_longer(tidyr::everything(), names_to = "sample", values_to = "value") |>
+          dplyr::mutate(
+            feature = "normalization_factor",
+            level = dplyr::case_when(
+              usage_level == "histone" ~ "Histone Abundance",
+              usage_level == "histone_family" ~ "Histone Family Abundance",
+              usage_level == "histone_group" ~ "Variant Group Abundance",
+            )
+          ) |>
+          dplyr::relocate(feature)
+
+        # break range for ggbreak
+        break_min <- dplyr::bind_rows(summ, est, prec_us) |> tidyr::drop_na() |> dplyr::pull(value) |> max()
+        break_max <- dplyr::bind_rows(prec_ab, fact) |> tidyr::drop_na() |> dplyr::pull(value) |> min()
+
+        plot_data <- dplyr::bind_rows(summ, est, prec_ab, prec_us, fact) |>
+          .format_for_plotting(object)
+
+        # Generate the plot
+        plot_list[[assay_level]][[assay]][[i]] <- .plot_usage(
+          plot_data,
+          title = feat,
+          show_legend = show_legend,
+          breaks = c(break_min, break_max),
+          groups = colData(object)[
+            colData(object) |> with(order(colData(object)$group, colData(object)$quantCols))
+          ]$group |>
+            table() |>
+            as.integer() +
+            0.5
+        )
+      }
+    }
+  }
+
+  return(plot_list)
 }
 
 # ------------------------------------------------------------------------------
@@ -72,7 +133,7 @@ usagePlot <- function(
     SummarizedExperiment::assay(object[[idx]][x]) |>
       tibble::as_tibble(rownames = "feature") |>
       tidyr::pivot_longer(!feature, names_to = "sample", values_to = "value") |>
-      dplyr::mutate(level = if (assay_level == "ptm") "PTM\nUsage" else "Variant\nUsage")
+      dplyr::mutate(level = if (assay_level == "ptm") "PTM Usage" else "Variant Group Usage")
   })
 }
 
@@ -97,9 +158,9 @@ usagePlot <- function(
         dplyr::relocate(feature) |>
         dplyr::mutate(
           level = if (assay_level == "ptm") {
-            paste0("PTM Estimated\nModel '", model_name, "'")
+            paste0("PTM Estimated (", model_name, ")")
           } else {
-            paste0("Variant Estimated\nModel '", model_name, "'")
+            paste0("Variant Group Estimated (", model_name, ")")
           }
         )
     }) |>
@@ -107,18 +168,14 @@ usagePlot <- function(
   })
 }
 
-.link_data <- function(object, assay, assay_level = NULL) {
+.link_data <- function(object, assay, assay_level = NULL, usage = TRUE) {
+  links <- QFeatures::assayLinks(object, assay)
+  link_fcol <- links[[1]]@fcol
+  # PTM assay has a "deconvoluted" precursor assay in between
   if (is.null(assay_level) || assay_level == "variant") {
-    link <- QFeatures::assayLink(object, assay)
-    precursor_assay <- link@from
-    link_fcol <- link@fcol
+    precursor_assay <- if (isTRUE(usage)) names(links)[[2]] else names(links)[[3]]
   } else if (assay_level == "ptm") {
-    links <- QFeatures::assayLinks(object, assay)
-    precursor_assay <- names(links)[[3]]
-    link_fcol <- links[[1]]@fcol
-  } else {
-    # incorrect names?
-    stop()
+    precursor_assay <- if (isTRUE(usage)) names(links)[[3]] else names(links)[[4]]
   }
 
   list(precursor_assay = precursor_assay, fcol = link_fcol)
@@ -130,6 +187,19 @@ usagePlot <- function(
     rd <- rowData(object[[link_data$precursor_assay]])
     purrr::map(x, \(y) rd[rd[[link_data$fcol]] == y, ]$precursor) |>
       purrr::set_names(x)
+  })
+}
+
+.get_precursor_abundance <- function(features, assay_level, object, usage) {
+  purrr::imap(features, function(x, idx) {
+    link_data <- .link_data(object, idx, assay_level = assay_level, usage = usage)
+    precursor_assay <- SummarizedExperiment::assay(object[[link_data$precursor_assay]])
+    purrr::map(x, function(y) {
+      precursor_assay[y, , drop = FALSE] |>
+        tibble::as_tibble(rownames = "feature") |>
+        tidyr::pivot_longer(!feature, names_to = "sample", values_to = "value") |>
+        dplyr::mutate(level = if (isTRUE(usage)) "Precursor Usage" else "Precursor Abundance")
+    })
   })
 }
 
@@ -153,36 +223,115 @@ usagePlot <- function(
   })
 }
 
-
-# OLD TODO
-
-.fetch_normalization_factors <- function(object, assay, feats) {
-  metadata <- metadata(object[[assay]])
-  if (length(metadata) == 0) {
-    # PTM or variant assay, so need to look back
-    metadata <- metadata(object[[QFeatures::assayLink(object, assay)@from]])
-  }
-
-  factor_name <- rowData(object[[assay]][feats])[[metadata$usage_level]]
-  if (metadata$usage_level == "histone") {
-    factor_name <- as.integer(factor_name)
-  }
-
-  scaling_factors <- metadata$scaling_factors[factor_name, ]
-
-  return(list(
-    scaling_factors = scaling_factors,
-    usage_level = metadata$usage_level
-  ))
+.format_for_plotting <- function(df, object) {
+  df |>
+    dplyr::mutate(
+      # grouping for individual lines
+      group_id = paste(level, feature),
+      # increase point size and linewidth for important assays
+      lw = dplyr::case_when(
+        level %in% c("Histone Abundance", "Histone Family Abundance", "Variant Group Abundance") ~ 1,
+        stringr::str_detect(level, "Estimated") ~ 1,
+        .default = .5
+      ),
+      point = dplyr::case_when(
+        stringr::str_detect(level, "Estimated") ~ NA_real_,
+        .default = value
+      ),
+      # define shape grouping for unique precursor points
+      shape_group = dplyr::case_when(
+        stringr::str_detect(level, "Precursor") ~ stringr::str_wrap(feature, 30, whitespace_only = FALSE),
+        .default = NA_character_
+      ),
+      # reorder levels for legend, estimated is kept as last so it always overlaps
+      level = suppressWarnings(forcats::fct_relevel(
+        level,
+        "Precursor Abundance",
+        "Precursor Usage",
+        "Histone Abundance",
+        "Histone Family Abundance",
+        "Variant Group Abundance",
+        "Variant Group Usage",
+        "PTM Usage"
+      )),
+      # run order should go by group then by sample name
+      sample = factor(
+        sample,
+        rownames(colData(object))[colData(object) |> with(order(colData(object)$group, colData(object)$quantCols))]
+      )
+    )
 }
 
-.detect_feature_level <- function(object, assay) {
-  fcol <- QFeatures::assayLink(object, assay)@fcol
-  if (fcol == "histone_group") {
-    return("variant")
-  } else if (fcol == "hptm") {
-    return("ptm")
-  } else {
-    return("precursor")
-  }
+.plot_usage <- function(df, title, show_legend, breaks = NULL, groups = NULL) {
+  color_map <- c(
+    "Histone Abundance" = "#5e81ac",
+    "Histone Family Abundance" = "#5e81ac",
+    "Variant Group Abundance" = "#5e81ac",
+    "Precursor Abundance" = "#3b4252",
+    "Precursor Usage" = "#4c566a",
+    "Variant Group Usage" = "#bf616a",
+    "PTM Usage" = "#bf616a"
+  )
+  alpha_map <- c(
+    "Histone Abundance" = 1,
+    "Histone Family Abundance" = 1,
+    "Variant Group Abundance" = 1,
+    "Variant Group Usage" = 1,
+    "Precursor Abundance" = .5,
+    "Precursor Usage" = .3,
+    "PTM Usage" = 1
+  )
+  estimated_names <- df |>
+    dplyr::filter(stringr::str_detect(level, "Estimated")) |>
+    dplyr::pull(level) |>
+    unique()
+  color_map <- c(
+    color_map,
+    c("#b48ead", "#a3be8c", "#d08770", "#ebcb8b", "#8fbcbb", "#88c0d0")[seq_along(estimated_names)] |>
+      purrr::set_names(as.character(estimated_names))
+  )
+  alpha_map <- c(alpha_map, rep.int(1, length(estimated_names)) |> purrr::set_names(as.character(estimated_names)))
+
+  p <- ggplot2::ggplot(
+    df,
+    ggplot2::aes(
+      x = sample,
+      y = value,
+      group = group_id,
+      color = level,
+      alpha = level
+    )
+  ) +
+
+    ggplot2::geom_point(ggplot2::aes(y = point, shape = shape_group), size = 1, show.legend = TRUE) +
+    ggplot2::geom_line(ggplot2::aes(linewidth = lw)) +
+    {
+      if (!is.null(groups)) ggplot2::geom_vline(xintercept = groups, linetype = "dashed")
+    } +
+    {
+      if (!all(is.null(breaks)) && breaks[[1]] < breaks[[2]]) {
+        ggbreak::scale_y_break(c(breaks[[1]], breaks[[2]]), scales = 1 / 1.618)
+      }
+    } +
+
+    ggplot2::scale_colour_manual(values = color_map, na.value = "grey50") +
+    ggplot2::scale_alpha_manual(values = alpha_map, na.value = 1) +
+    ggplot2::scale_linewidth_identity() +
+    ggplot2::scale_shape_manual(values = c(16:25, 0:15, 97:122, 65:90), na.translate = FALSE) +
+
+    ggplot2::labs(
+      title = stringr::str_wrap(title, 60, whitespace_only = FALSE),
+      x = "Run",
+      y = NULL,
+      colour = "Assay",
+      alpha = "Assay",
+      shape = "Precursor"
+    ) +
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_text(angle = 60, hjust = 1),
+      legend.position = if (show_legend) "right" else "none"
+    )
+
+  return(p)
 }

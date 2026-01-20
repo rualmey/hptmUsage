@@ -862,13 +862,45 @@ if (!is.null(params$contrasts)) {
 #| label: chunk-usageplots
 
 if (!is.null(params$contrasts)) {
-  # TODO
-  usagePlot(
-    object = temp2, # TODO pe
+  usage_plots <- usagePlot(
+    object = pe,
     assays = list(ptm = "ptm", variant = "variant"),
-    model = c(factor = "~0 + group", factor2 = "~group", factor3 = "~ group + extraction_efficiency"), # TODO purrr::set_names(params$design_formula, params$design_formula_names)
-    significant_only = TRUE
+    model = purrr::set_names(params$design_formula, params$design_formula_names),
+    significant_only = TRUE,
+    show_legend = TRUE
   )
+  # store results
+  purrr::iwalk(usage_plots$ptm, function(x, idx) {
+    folder_name <- paste0("/out/floats/usage_plots/ptm_", idx)
+    fs::dir_create(fs::path(quarto::get_running_project_root(), folder_name))
+    purrr::iwalk(x, function(y, idx2) {
+      ggplot2::ggsave(
+        fs::path(
+          quarto::get_running_project_root(),
+          folder_name,
+          paste0("fig-", idx2),
+          ext = "svg"
+        ),
+        plot = y
+      )
+    })
+  })
+  purrr::iwalk(usage_plots$variant, function(x, idx) {
+    folder_name <- paste0("/out/floats/usage_plots/variant_", idx)
+    fs::dir_create(fs::path(quarto::get_running_project_root(), folder_name))
+    purrr::iwalk(x, function(y, idx2) {
+      ggplot2::ggsave(
+        fs::path(
+          quarto::get_running_project_root(),
+          folder_name,
+          paste0("fig-", idx2),
+          ext = "svg"
+        ),
+        plot = y
+      )
+    })
+  })
+
 } else {
   print("No contrasts defined!")
 }

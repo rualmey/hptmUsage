@@ -4,17 +4,31 @@
 \alias{usagePlot}
 \title{Generate Usage Plots}
 \usage{
-usagePlot(...)
+usagePlot(object, assays, model, significant_only = TRUE, show_legend = TRUE)
 }
 \arguments{
-\item{...}{TODO}
+\item{object}{A \code{QFeatures} object containing the histone data, including
+models from \code{\link[msqrob2:msqrob]{msqrob2::msqrob()}} etc.}
+
+\item{assays}{A named \code{list()} of assays (\code{character()} or \code{integer()}) to
+plot (hPTM and/or variant group level), where names should correspond to
+the assay level, i.e., "ptm" or "variant". For example \verb{list(ptm = "ptm", variant = "variant"),}.}
+
+\item{model}{A named \code{character()} of formula(e) that were fit using
+\code{\link[msqrob2:msqrob]{msqrob2::msqrob()}}. Used to reconstruct model estimates. For example,
+\code{c(meansReference = "~ group", regressionTreat = "~ cell_line + treatment")}.}
+
+\item{significant_only}{Logical. Whether to generate lineplots for all
+features or only those that weres significant in \strong{any} contrasts of the
+supplied model(s).}
+
+\item{show_legend}{Logical. Whether to show the legend.}
 }
 \value{
-TODO
+A list of \code{ggplot} objects, nested by assay level and assay name.
 }
 \description{
-TODO
-}
-\examples{
-# TODO
+This function generates line plots showing the usage of histone variants,
+precursors, or PTMs across samples. It visualizes the relevant usage
+normalization factors, corrected usages, and model estimates.
 }
