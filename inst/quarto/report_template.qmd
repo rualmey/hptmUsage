@@ -138,9 +138,9 @@ for (histone_family in histone_families) {
   cat("\n\n::::: {.scrolling-msa}\n\n")
   print(p)
   cat("\n\n:::::\n\n")
-  # TODO save plot
+  # save plot
   fs::dir_create(fs::path(quarto::get_running_project_root(), "/out/floats/"))
-  # ggplot2::ggsave(fs::path(quarto::get_running_project_root(), "/out/floats/fig-", histone_family, "-msa", ext = "png"), dpi = 300, plot = p)
+  ggplot2::ggsave(fs::path(quarto::get_running_project_root(), paste0("/out/floats/fig-", histone_family, "-msa"), ext = "svg"), plot = p)
   # end quarto programmatic tabset
   cat("\n\n")
 }
@@ -189,6 +189,7 @@ p <- ggExtra::ggMarginal(
   position = "stack",
   alpha = .6
 )
+ggplot2::ggsave(fs::path(quarto::get_running_project_root(), "/out/floats/fig-extraction", ext = "svg"), plot = p)
 grid::grid.newpage()
 grid::grid.draw(p)
 ```
@@ -272,7 +273,7 @@ pe <- pe |>
   filterFeatures(~ pNA < .5, i = "precursor", keep = TRUE)
 
 # plot remaining
-rowData(pe[rowData(pe[["precursor"]])$histone, ][["precursor"]]) |>
+p <- rowData(pe[rowData(pe[["precursor"]])$histone, ][["precursor"]]) |>
   ggplot(aes(
     x = histone_family,
     fill = !is.na(mods_pep) &
@@ -280,6 +281,8 @@ rowData(pe[rowData(pe[["precursor"]])$histone, ][["precursor"]]) |>
   )) +
   geom_bar() +
   labs(fill = "Modified")
+ggplot2::ggsave(fs::path(quarto::get_running_project_root(), "/out/floats/fig-families", ext = "svg"), plot = p)
+p
 ```
 
 This leaves us with `r nrow(pe[["precursor"]])` observations (`r rows_before_filter - nrow(pe[["precursor"]])`
@@ -400,9 +403,7 @@ hist_abundance_qc <- pe |>
   scale_y_continuous(labels = scales::percent) +
   coord_cartesian(expand = FALSE) +
   labs(x = "Run", y = "Histone Abundance (%)", fill = "Histone\nFamily")
-# ggsave("./out/floats/fig-family-abundance.png",
-#   plot = hist_abundance_qc, width = 3.6, height = 2.5, units = "in", dpi = 600
-# ) TODO
+ggplot2::ggsave(fs::path(quarto::get_running_project_root(), "/out/floats/fig-abundance-ratio", ext = "svg"), plot = hist_abundance_qc)
 hist_abundance_qc
 ```
 
@@ -537,7 +538,6 @@ pe <- pe[, pe$include]
 colData(pe) <- droplevels(colData(pe))
 
 # relevel factors as needed
-# TODO
 stopifnot("'reference_levels' should be a named vector" = length(params$reference_levels) == length(params$reference_levels_names))
 for (i in seq_along(params$reference_levels)) {
   colData(pe)[[params$reference_levels_names[[i]]]] <- forcats::fct_relevel(colData(pe)[[params$reference_levels_names[[i]]]], params$reference_levels[[i]])
@@ -557,6 +557,10 @@ model_designs[grepl("factor", names(model_designs), fixed = TRUE)] |>
   purrr::map("plotlist") |>
   purrr::walk(print) |>
   invisible()
+# store plots
+model_designs[grepl("factor", names(model_designs), fixed = TRUE)] |>
+  purrr::map("plotlist") |>
+  purrr::imap(\(p, name) ggplot2::ggsave(fs::path(quarto::get_running_project_root(), paste0("/out/floats/fig-design-", name), ext = "svg"), plot = p))
 ```
 
 Random effects can be included to account for **categorical** technical factors such as sample preparation batches, study individuals, ...
@@ -774,34 +778,32 @@ if (!is.null(params$contrasts)) {
           -max(abs(filter(hypothesis_tests[[viz_assay]], formula == formula_name)$logFC)),
           max(abs(filter(hypothesis_tests[[viz_assay]], formula == formula_name)$logFC))
         ))
-      # print for testing
-      # print(volcanos[[viz_assay]][[formula_name]] +
-      #   labs(
-      #     x = bquote(log[2](FC)),
-      #     y = bquote(-log[10](Pval)),
-      #     color = bquote(Pval[BH] < 0.05),
-      #     shape = "Histone family",
-      #     title = assay_names[[viz_assay]]
-      #   ))
       # for output width/height
       volcano_layout[[formula_name]] <- ggplot_build(volcanos[[viz_assay]][[formula_name]])$layout$layout
-      # # save figures TODO
-      # ggsave(
-      #   plot = volcanos[[viz_assay]][[formula_name]] +
-      #     labs(
-      #       x = bquote(log[2](FC)),
-      #       y = bquote(-log[10](Pval)),
-      #       color = bquote(Pval[BH] < 0.05),
-      #       shape = "Histone family",
-      #       title = assay_names[[viz_assay]]
-      #     ),
-      #   filename = fs::path(quarto::get_running_project_root(), "/out/floats/",
-      #     str_replace_all(assay_names[[viz_assay]], fixed(" "), "_"),
-      #     "_volcano.pdf"),
-      #   width = 40 + 50 * max(volcano_layout[[formula_name]]$COL),
-      #   height = 60 * max(volcano_layout[[formula_name]]$ROW),
-      #   units = "mm", dpi = 300
-      # )
+      # save figures
+      fs::dir_create(fs::path(quarto::get_running_project_root(), "/out/floats/volcano"))
+      p <- volcanos[[viz_assay]][[formula_name]] +
+          labs(
+            x = bquote(log[2](FC)),
+            y = bquote(-log[10](Pval)),
+            color = bquote(Pval[BH] < 0.05),
+            shape = "Histone family",
+            title = assay_names[[viz_assay]]
+          )
+      ggplot2::ggsave(
+        fs::path(
+          quarto::get_running_project_root(),
+          paste0(
+            "/out/floats/volcano/fig-",
+            stringr::str_replace_all(assay_names[[viz_assay]], fixed(" "), "_"),
+            "_volcano.pdf"
+          ),
+          ext = "svg"
+        ),
+        plot = p,
+        width = 40 + 50 * max(volcano_layout[[formula_name]]$COL),
+        height = 60 * max(volcano_layout[[formula_name]]$ROW)
+      )
     }
   }
 } else {
