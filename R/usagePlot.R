@@ -140,7 +140,7 @@ usagePlot <- function(
 .get_estimated_usage <- function(features, assay_level, object, model) {
   purrr::imap(features, function(x, idx) {
     purrr::imap(model, function(model_formula, model_name) {
-      design_mat <- model.matrix(as.formula(model_formula), data = droplevels(colData(object)))
+      design_mat <- stats::model.matrix(stats::as.formula(model_formula), data = droplevels(colData(object)))
       purrr::map(rowData(object[[idx]][x])[[model_name]], function(model) {
         coef <- msqrob2::getCoef(model)
         # fix ridge regression as this prepends "ridge" to the factor name
@@ -240,7 +240,13 @@ usagePlot <- function(
       ),
       # define shape grouping for unique precursor points
       shape_group = dplyr::case_when(
-        stringr::str_detect(level, "Precursor") ~ stringr::str_wrap(feature, 30, whitespace_only = FALSE),
+        stringr::str_detect(level, "Precursor") ~ stringi::stri_sub_replace_all(
+          feature,
+          seq(26, 126, 25),
+          seq(25, 125, 25),
+          replacement = "\n"
+        ) |>
+          stringr::str_replace(r"--((\d)(\n)*$)--", "\\1"),
         .default = NA_character_
       ),
       # reorder levels for legend, estimated is kept as last so it always overlaps
