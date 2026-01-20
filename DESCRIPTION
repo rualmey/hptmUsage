@@ -44,7 +44,6 @@ Imports:
     S4Vectors,
     SummarizedExperiment,
     svglite,
-    systemfonts,
     tibble,
     tidyr,
     tidyselect,
@@ -78,4 +77,3 @@ Collate:
     'replaceColData.R'
     'tagContaminants.R'
     'usagePlot.R'
-    'zzz.R'
