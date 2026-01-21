@@ -1,6 +1,6 @@
 Package: hptmUsage
 Title: Usage Analysis of Histone Post-Translational Modifications
-Version: 0.0.0.9000
+Version: 1.0.0
 Authors@R:
     person("Ruben", "Almey", , "ruben.almey@ugent.be", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-6911-5904"))
@@ -49,7 +49,8 @@ Imports:
     tidyselect,
     UniProt.ws,
     vctrs,
-    vsn
+    vsn,
+    stringi
 Suggests:
     bench,
     covr,
