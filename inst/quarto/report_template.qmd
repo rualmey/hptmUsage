@@ -43,8 +43,9 @@ library(msqrob2)
 library(ggplot2)
 library(ggbreak)
 # hPTM usage
-# TODO library(hptmUsage)
-devtools::load_all(path = "/workspaces/hptmUsage")
+library(hptmUsage)
+# local development
+# devtools::load_all(path = "/workspaces/hptmUsage")
 ```
 
 ## Data parsing {#sec-parsing}
