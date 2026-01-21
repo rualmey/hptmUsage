@@ -419,7 +419,7 @@ pe <- do.call(calculateUsage, rlang::list2(object = pe, i = "precursorHistone", 
 # variant usage
 if (is.null(params$usage_params[["usage_level"]])) {
   usage_level <- "histone"
- } else {
+} else {
   usage_level <- params$usage_params[["usage_level"]]
 }
 if (usage_level == "histone_group") {
@@ -552,15 +552,15 @@ model_designs <- lapply(
   \(x) ExploreModelMatrix::VisualizeDesign(colData(pe), designFormula = x, textSizeFitted = 2)
 )
 names(model_designs) <- params$design_formula_names
+# store plots
+model_designs[grepl("factor", names(model_designs), fixed = TRUE)] |>
+  purrr::map("plotlist") |>
+  purrr::iwalk(\(p, name) suppressMessages(ggplot2::ggsave(fs::path(quarto::get_running_project_root(), paste0("/out/floats/fig-design-", name), ext = "svg"), plot = p)))
 # show the experimental design matrix
 model_designs[grepl("factor", names(model_designs), fixed = TRUE)] |>
   purrr::map("plotlist") |>
   purrr::walk(print) |>
   invisible()
-# store plots
-model_designs[grepl("factor", names(model_designs), fixed = TRUE)] |>
-  purrr::map("plotlist") |>
-  purrr::imap(\(p, name) ggplot2::ggsave(fs::path(quarto::get_running_project_root(), paste0("/out/floats/fig-design-", name), ext = "svg"), plot = p))
 ```
 
 Random effects can be included to account for **categorical** technical factors such as sample preparation batches, study individuals, ...
@@ -783,26 +783,27 @@ if (!is.null(params$contrasts)) {
       # save figures
       fs::dir_create(fs::path(quarto::get_running_project_root(), "/out/floats/volcano"))
       p <- volcanos[[viz_assay]][[formula_name]] +
-          labs(
-            x = bquote(log[2](FC)),
-            y = bquote(-log[10](Pval)),
-            color = bquote(Pval[BH] < 0.05),
-            shape = "Histone family",
-            title = assay_names[[viz_assay]]
-          )
+        labs(
+          x = bquote(log[2](FC)),
+          y = bquote(-log[10](Pval)),
+          color = bquote(Pval[BH] < 0.05),
+          shape = "Histone family",
+          title = assay_names[[viz_assay]]
+        )
       ggplot2::ggsave(
         fs::path(
           quarto::get_running_project_root(),
           paste0(
-            "/out/floats/volcano/fig-",
+            "/out/floats/volcano/", formula_name, "-",
             stringr::str_replace_all(assay_names[[viz_assay]], fixed(" "), "_"),
             "_volcano.pdf"
           ),
           ext = "svg"
         ),
-        plot = p,
-        width = 40 + 50 * max(volcano_layout[[formula_name]]$COL),
-        height = 60 * max(volcano_layout[[formula_name]]$ROW)
+        plot = p
+        # width = 40 + 50 * max(volcano_layout[[formula_name]]$COL),
+        # height = 60 * max(volcano_layout[[formula_name]]$ROW),
+        # units = "mm"
       )
     }
   }
@@ -864,45 +865,63 @@ if (!is.null(params$contrasts)) {
 #| label: chunk-usageplots
 
 if (!is.null(params$contrasts)) {
-  usage_plots <- usagePlot(
-    object = pe,
-    assays = list(ptm = "ptm", variant = "variant"),
-    model = purrr::set_names(params$design_formula, params$design_formula_names),
-    significant_only = TRUE,
-    show_legend = TRUE
-  )
-  # store results
-  purrr::iwalk(usage_plots$ptm, function(x, idx) {
-    folder_name <- paste0("/out/floats/usage_plots/ptm_", idx)
-    fs::dir_create(fs::path(quarto::get_running_project_root(), folder_name))
-    purrr::iwalk(x, function(y, idx2) {
-      ggplot2::ggsave(
-        fs::path(
-          quarto::get_running_project_root(),
-          folder_name,
-          paste0("fig-", idx2),
-          ext = "svg"
-        ),
-        plot = y
-      )
+  if (params$generate_usageplots != "none") {
+    usage_plots <- usagePlot(
+      object = pe,
+      assays = list(ptm = "ptm", variant = "variant"),
+      model = purrr::set_names(params$design_formula, params$design_formula_names),
+      significant_only = TRUE,
+      show_legend = TRUE
+    )
+    # store results
+    purrr::iwalk(usage_plots$ptm, function(x, idx) {
+      folder_name <- paste0("/out/floats/usage_plots/ptm_", idx)
+      fs::dir_create(fs::path(quarto::get_running_project_root(), folder_name))
+      purrr::iwalk(x, function(y, idx2) {
+        suppressWarnings(suppressMessages(ggplot2::ggsave(
+          fs::path(
+            quarto::get_running_project_root(),
+            folder_name,
+            stringr::str_replace_all(idx2, c(
+              " " = "_",
+              "/" = "-",
+              "#" = "-",
+              "\\|" = ""
+            )),
+            ext = "svg"
+          ),
+          plot = y,
+          width = ncol(colData(pe)) * .5,
+          scale = 1.5
+        )))
+      })
     })
-  })
-  purrr::iwalk(usage_plots$variant, function(x, idx) {
-    folder_name <- paste0("/out/floats/usage_plots/variant_", idx)
-    fs::dir_create(fs::path(quarto::get_running_project_root(), folder_name))
-    purrr::iwalk(x, function(y, idx2) {
-      ggplot2::ggsave(
-        fs::path(
-          quarto::get_running_project_root(),
-          folder_name,
-          paste0("fig-", idx2),
-          ext = "svg"
-        ),
-        plot = y
-      )
+    purrr::iwalk(usage_plots$variant, function(x, idx) {
+      folder_name <- paste0("/out/floats/usage_plots/variant_", idx)
+      fs::dir_create(fs::path(quarto::get_running_project_root(), folder_name))
+      purrr::iwalk(x, function(y, idx2) {
+        suppressWarnings(suppressMessages(ggplot2::ggsave(
+          fs::path(
+            quarto::get_running_project_root(),
+            folder_name,
+            stringr::str_replace_all(idx2, c(
+              " " = "_",
+              "/" = "-",
+              "#" = "-",
+              "\\|" = ""
+            )),
+            ext = "svg"
+          ),
+          plot = y,
+          width = ncol(colData(pe)) * .5,
+          scale = 1.5
+        )))
+      })
     })
-  })
-
+    print("Usage plots succesfully generated, see the 'Download figures' button below.")
+  } else {
+    print("No usage plots were generated, see the 'generate_usageplots' parameter.")
+  }
 } else {
   print("No contrasts defined!")
 }

@@ -89,10 +89,11 @@ usagePlot <- function(
           show_legend = show_legend,
           breaks = c(break_min, break_max),
           groups = colData(object)[
-            colData(object) |> with(order(colData(object)$group, colData(object)$quantCols))
+            colData(object) |> with(order(colData(object)$group, colData(object)$quantCols)),
           ]$group |>
             table() |>
-            as.integer() +
+            as.integer() |>
+            cumsum() +
             0.5
         )
       }
@@ -242,8 +243,8 @@ usagePlot <- function(
       shape_group = dplyr::case_when(
         stringr::str_detect(level, "Precursor") ~ stringi::stri_sub_replace_all(
           feature,
-          seq(26, 126, 25),
-          seq(25, 125, 25),
+          seq(41, 1001, 40),
+          seq(40, 1000, 40),
           replacement = "\n"
         ) |>
           stringr::str_replace(r"--((\d)(\n)*$)--", "\\1"),
@@ -326,7 +327,7 @@ usagePlot <- function(
     ggplot2::scale_shape_manual(values = c(16:25, 0:15, 97:122, 65:90), na.translate = FALSE) +
 
     ggplot2::labs(
-      title = stringr::str_wrap(title, 60, whitespace_only = FALSE),
+      title = stringr::str_wrap(title, length(unique(dplyr::pull(df, sample))) * 6, whitespace_only = FALSE),
       x = "Run",
       y = NULL,
       colour = "Assay",
