@@ -119,6 +119,10 @@ if (is.null(params$histone_params$histone_families)) {
   histone_families <- params$histone_params$histone_families
 }
 
+xlabs <- purrr::map(aligned_histones$msa_ref, .mapper_from_msa) |>
+  purrr::map(1) |>
+  purrr::map2(aligned_histones$msa_ref, .fill_msa_gaps)
+
 # inspect the alignment of all families in tabset? Visualize the parsed results
 for (histone_family in histone_families) {
   # quarto programmatic tabset
@@ -134,7 +138,21 @@ for (histone_family in histone_families) {
     ignore_gaps = FALSE,
     ref = names(histones$msa_ref[[histone_family]])
   ) +
-    theme(axis.text = element_text(size = 1000 / width(histones$msa[[histone_family]])[[1]]))
+    # Add the custom x-axis scale
+    scale_x_continuous(
+      position = "top",
+      breaks = seq(1, length(xlabs[[histone_family]]), 5),
+      labels = xlabs[[histone_family]][seq(1, length(xlabs[[histone_family]]), 5)],
+      expand = c(0, 0)
+    ) +
+    theme(
+    axis.text = element_text(size = 1000 / width(histones$msa[[histone_family]])[[1]]),
+    axis.text.x.top = element_text(
+      size = 750 / width(histones$msa[[histone_family]])[[1]],
+      vjust = 0,
+      margin = margin(b = 2, unit = "pt")
+    )
+  )
   # plot in scrollable container
   cat("\n\n::::: {.scrolling-msa}\n\n")
   print(p)
