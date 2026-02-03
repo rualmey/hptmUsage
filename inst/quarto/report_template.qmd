@@ -119,9 +119,9 @@ if (is.null(params$histone_params$histone_families)) {
   histone_families <- params$histone_params$histone_families
 }
 
-xlabs <- purrr::map(aligned_histones$msa_ref, .mapper_from_msa) |>
+xlabs <- purrr::map(aligned_histones$msa_ref, hptmUsage:::.mapper_from_msa) |>
   purrr::map(1) |>
-  purrr::map2(aligned_histones$msa_ref, .fill_msa_gaps)
+  purrr::map2(aligned_histones$msa_ref, hptmUsage:::.fill_msa_gaps)
 
 # inspect the alignment of all families in tabset? Visualize the parsed results
 for (histone_family in histone_families) {
