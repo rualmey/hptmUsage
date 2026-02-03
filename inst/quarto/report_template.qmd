@@ -195,7 +195,7 @@ colData(pe)[names(median_raw_histone_abundance), "median_raw_histone_abundance"]
 pe$extraction_efficiency <- pe$median_raw_histone_abundance / pe$median_raw_coextr_abundance
 # visualize loading consistency / histone extraction efficiency
 p <- ggplot(
-  tibble::as_tibble(colData(pe[, !grepl("QC_", pe$quantCols)])),
+  tibble::as_tibble(colData(pe)[colData(pe)$group != "QC", ]),
   aes(x = median_raw_histone_abundance, y = median_raw_coextr_abundance, color = group)
 ) +
   geom_point(aes(shape = outlier, size = extraction_efficiency)) +
@@ -204,7 +204,7 @@ p <- ggplot(
   scale_size(range = c(2, 3))
 p <- ggExtra::ggMarginal(
   p,
-  mapping = aes(fill = colData(pe[, !grepl("QC_", pe$quantCols)])$group),
+  mapping = aes(fill = colData(pe)[colData(pe)$group != "QC", ]$group),
   position = "stack",
   alpha = .6
 )
