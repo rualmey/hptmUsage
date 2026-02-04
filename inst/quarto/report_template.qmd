@@ -892,6 +892,23 @@ if (!is.null(params$contrasts)) {
       significant_only = TRUE,
       show_legend = TRUE
     )
+    # fix path length too long
+    shorten_name <- function(name) {
+      if (nchar(name) <= 150) return(name)
+      parts <- stringr::str_split_1(name, "#")
+      histone <- parts[[1]]
+      mods <- parts[[2]]
+      if (nchar(histone) > 50) {
+        stringr::str_sub(histone, 51) <- "---"
+      }
+      if (nchar(histone) + 1 + nchar(mods) > 150) {
+        stringr::str_sub(mods, 94) <- "---"
+      }
+      paste0(histone, "#", mods)
+    }
+    usage_plots <- purrr::modify_depth(usage_plots, 2, function(x) {
+      purrr::set_names(x, purrr::map_chr(names(x), shorten_name))
+    })
     # store results
     purrr::iwalk(usage_plots$ptm, function(x, idx) {
       folder_name <- paste0("/out/floats/usage_plots/ptm_", idx)
