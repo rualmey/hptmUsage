@@ -897,14 +897,23 @@ if (!is.null(params$contrasts)) {
       if (nchar(name) <= 150) return(name)
       parts <- stringr::str_split_1(name, "#")
       histone <- parts[[1]]
-      mods <- parts[[2]]
-      if (nchar(histone) > 50) {
-        stringr::str_sub(histone, 51) <- "---"
+      if (length(parts) == 1) {
+        # variants
+        if (nchar(histone) > 100) {
+          stringr::str_sub(histone, 98) <- "---"
+        }
+        return(histone)
+      } else {
+        # hPTMs
+        mods <- parts[[2]]
+        if (nchar(histone) > 50) {
+          stringr::str_sub(histone, 51) <- "---"
+        }
+        if (nchar(histone) + 1 + nchar(mods) > 100) {
+          stringr::str_sub(mods, 51) <- "---"
+        }
+        paste0(histone, "#", mods)
       }
-      if (nchar(histone) + 1 + nchar(mods) > 150) {
-        stringr::str_sub(mods, 94) <- "---"
-      }
-      paste0(histone, "#", mods)
     }
     usage_plots <- purrr::modify_depth(usage_plots, 2, function(x) {
       purrr::set_names(x, purrr::map_chr(names(x), shorten_name))
