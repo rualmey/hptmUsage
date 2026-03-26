@@ -1,6 +1,6 @@
 Package: hptmUsage
 Title: Usage Analysis of Histone Post-Translational Modifications
-Version: 1.0.0
+Version: 1.0.1
 Authors@R:
     person("Ruben", "Almey", , "ruben.almey@ugent.be", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-6911-5904"))
