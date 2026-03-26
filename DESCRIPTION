@@ -12,7 +12,7 @@ License: GPL (>= 3)
 URL: https://github.com/rualmey/hptmUsage
 BugReports: https://github.com/rualmey/hptmUsage/issues
 Depends:
-    QFeatures (>= 1.18.0),
+    QFeatures (>= 1.20.0),
     R (>= 4.3)
 Imports:
     archive,
