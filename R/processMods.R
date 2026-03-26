@@ -25,6 +25,7 @@
 #' @param rename_mods A `list()` of two-sided formulas where the LHS is the old
 #'   name and the RHS the new name (e.g., `"old" ~ "new"`) specifying how to
 #'   rename hPTMs. Optional.
+#' @param duplicates How should duplicates be handled? See [readProgenesis()].
 #' @returns
 #' A `QFeatures` or `SummarizedExperiment` (same as supplied) with the rowData
 #' containing four new columns, where each column differs in the locations of
@@ -47,7 +48,8 @@ setGeneric(
     mod_format = c("progenesis", "progenesis_sw"),
     unmods = c("K"),
     strip_mods = list(Propionyl = c("K", "N-term")),
-    rename_mods = NULL
+    rename_mods = NULL,
+    duplicates = "sum"
   ) {
     standardGeneric("processMods")
   },
@@ -92,7 +94,8 @@ setMethod(
     mod_format = c("progenesis", "progenesis_sw"),
     unmods = c("K"),
     strip_mods = list(Propionyl = c("K", "N-term")),
-    rename_mods = NULL
+    rename_mods = NULL,
+    duplicates = "sum"
   ) {
     i <- QFeatures:::.normIndex(object, i)
     for (j in i) {
@@ -104,7 +107,8 @@ setMethod(
           mod_format = mod_format,
           unmods = unmods,
           strip_mods = strip_mods,
-          rename_mods = rename_mods
+          rename_mods = rename_mods,
+          duplicates = duplicates
         ),
         j
       )
@@ -147,7 +151,8 @@ setMethod(
     mod_format = c("progenesis", "progenesis_sw"),
     unmods = c("K"),
     strip_mods = list(Propionyl = c("K", "N-term")),
-    rename_mods = NULL
+    rename_mods = NULL,
+    duplicates = "sum"
   ) {
     rd <- rowData(object)
 
@@ -218,6 +223,41 @@ setMethod(
     }
 
     rowData(object) <- rd
+
+    # handle duplicates, can originate from stripping mods e.g. K-propionyl
+    dups <- duplicated(rownames(object))
+    if (any(dups)) {
+      message(
+        "Found ",
+        dplyr::n_distinct(rownames(object[dups])),
+        " duplicated features (sequence + charge + mods). Resolving using '",
+        duplicates,
+        "' method."
+      )
+
+      mat <- SummarizedExperiment::assay(object)
+      if (duplicates == "max") {
+        idx_tbl <- tibble::tibble(
+          peptidoform = rownames(object),
+          .mean_abundance = rowMeans(mat, na.rm = TRUE),
+          orig_idx = seq_len(nrow(mat))
+        ) |>
+          dplyr::group_by(.data[["peptidoform"]]) |>
+          dplyr::slice_max(.data[[".mean_abundance"]], n = 1, with_ties = FALSE) |>
+          dplyr::ungroup() |>
+          # Preserve the original relative ordering
+          dplyr::arrange(.data[["orig_idx"]])
+        kept_indices <- idx_tbl$orig_idx
+        mask <- seq_len(nrow(mat)) %in% kept_indices
+        mat <- mat[kept_indices, , drop = FALSE]
+      } else if (duplicates == "sum") {
+        mask <- !dups
+        mat <- rowsum(mat, group = rownames(object)) |>
+          _[unique(rownames(object)), , drop = FALSE]
+      }
+    }
+    object <- object[mask, ]
+    SummarizedExperiment::assay(object) <- mat
 
     object
   }
