@@ -265,7 +265,7 @@ setMethod(
     "Renaming mods: ",
     paste(rename_map, collapse = "; ")
   )
-  purrr::map(mods, \(x) dplyr::case_match(x, !!!rename_map, .default = x))
+  purrr::map(mods, \(x) dplyr::replace_values(x, !!!rename_map))
 }
 
 .process_modifications <- function(locs, mods, sequences, strip_mods, unmods, is_histone) {

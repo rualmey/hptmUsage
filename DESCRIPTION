@@ -18,7 +18,7 @@ Imports:
     archive,
     Biobase,
     Biostrings,
-    dplyr,
+    dplyr (>= 1.2.0),
     ExploreModelMatrix,
     forcats,
     fs,

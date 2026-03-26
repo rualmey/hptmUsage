@@ -9,7 +9,7 @@ hptm_benchmark$group <- hptm_benchmark$group |>
   forcats::fct_relevel("0min", "15min", "30min", "1h", "2h", "4h", "8h", "0min_neg", "8h_neg")
 hptm_benchmark$include[hptm_benchmark$group == "BH"] <- FALSE
 hptm_benchmark$time <- hptm_benchmark$group |>
-  dplyr::case_match(
+  dplyr::recode_values(
     c("0min", "0min_neg") ~ 0,
     "15min" ~ 0.25,
     "30min" ~ 0.5,
@@ -19,7 +19,7 @@ hptm_benchmark$time <- hptm_benchmark$group |>
     c("8h", "8h_neg") ~ 8
   )
 hptm_benchmark$treated <- hptm_benchmark$group |>
-  dplyr::case_match(
+  dplyr::recode_values(
     c("0min_neg", "8h_neg") ~ FALSE,
     c("0min", "15min", "30min", "1h", "2h", "4h", "8h") ~ TRUE
   )
